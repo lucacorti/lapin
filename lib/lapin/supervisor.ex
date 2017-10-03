@@ -6,7 +6,7 @@ defmodule Lapin.Supervisor do
   end
 
   def init(config) do
-    children = [
+    [
       worker(Lapin.Worker, [config])
     ]
     |> supervise(strategy: :one_for_one)
