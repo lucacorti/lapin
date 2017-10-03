@@ -55,7 +55,7 @@ defmodule Lapin.Worker do
       end
     else
       nil ->
-        error = "Error publishing message: unconfigured or unknown channel for '#{queue}' on '#{exchange}'"
+        error = "Error publishing message: no known channel for queue '#{queue}' on exchange '#{exchange}'"
         Logger.debug(error)
         {:reply, {:error, error}, state}
       {:error, error} ->
