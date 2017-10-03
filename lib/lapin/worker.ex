@@ -40,7 +40,7 @@ defmodule Lapin.Worker do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, queue),
          channel when not is_nil(channel) <- Keyword.get(channel_config, :channel),
          exchange when not is_nil(exchange) <- Keyword.get(channel_config, :exchange),
-         pattern <- Keyword.get(channel_config, :pattern, Lapin.Pattern),
+         pattern <- Keyword.get(channel_config, :pattern),
          routing_key when not is_nil(routing_key) <- pattern.routing_key(channel_config),
          :ok <- Basic.publish(channel, exchange, routing_key, message,
           persistent: pattern.publisher_persistent(channel_config)
@@ -66,7 +66,7 @@ defmodule Lapin.Worker do
 
   def handle_info({:basic_consume_ok, %{consumer_tag: consumer_tag}}, %{channels: channels} = state) do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
-         pattern <- Keyword.get(channel_config, :pattern, Lapin.Pattern),
+         pattern <- Keyword.get(channel_config, :pattern),
          :ok <- pattern.handle_register(channel_config) do
         Logger.debug("Broker registered consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}")
     else
@@ -80,7 +80,7 @@ defmodule Lapin.Worker do
 
   def handle_info({:basic_cancel, %{consumer_tag: consumer_tag}}, %{channels: channels} = state) do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
-         pattern <- Keyword.get(channel_config, :pattern, Lapin.Pattern),
+         pattern <- Keyword.get(channel_config, :pattern),
          :ok <- pattern.handle_cancel(channel_config) do
         Logger.debug("Broker cancelled consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}")
     else
@@ -92,11 +92,10 @@ defmodule Lapin.Worker do
     {:stop, :normal, state}
   end
 
-  # Confirmation sent by the broker to the consumer process after a Basic.cancel
   def handle_info({:basic_cancel_ok, %{consumer_tag: consumer_tag}}, %{channels: channels} = state) do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
          pattern when not is_nil(pattern) <- Keyword.get(channel_config, :pattern),
-      :ok = pattern.handle_cancel_ok(channel_config) do
+         :ok <- pattern.handle_cancel_ok(channel_config) do
       Logger.debug("Broker confirmed cancel consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}")
     else
       nil ->
@@ -130,7 +129,7 @@ defmodule Lapin.Worker do
 
   defp consume(channel_config, channel, meta, payload) do
     Logger.debug("Consuming message #{meta.delivery_tag}")
-    with pattern <- Keyword.get(channel_config, :pattern, Lapin.Pattern),
+    with pattern <- Keyword.get(channel_config, :pattern),
          :ok <- pattern.handle_consume(channel_config, meta, payload) do
        if not pattern.consumer_ack(channel_config) or Basic.ack(channel, meta.delivery_tag) do
          Logger.debug("Message #{meta.delivery_tag} consumed successfully, with ACK")
@@ -197,8 +196,7 @@ defmodule Lapin.Worker do
            {:ok, consumer_tag} <- Basic.consume(channel, queue) do
         Logger.debug("#{consumer_tag}: bound to #{exchange}->#{queue}: #{inspect info}")
         channel_config
-        |> Keyword.put(:channel, channel)
-        |> Keyword.put(:consumer_tag, consumer_tag)
+        |> Keyword.merge([ pattern: pattern, channel: channel, consumer_tag: consumer_tag])
       else
         error ->
           Logger.debug("Error creating #{channel_config}: #{inspect error}")
