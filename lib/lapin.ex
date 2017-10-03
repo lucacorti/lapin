@@ -1,18 +1,5 @@
 defmodule Lapin do
   @moduledoc """
-  Documentation for Lapin.
+  Documentation for Lapin, an Elixir RabbitMQ client
   """
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Lapin.hello
-      :world
-
-  """
-  def hello do
-    :world
-  end
 end
