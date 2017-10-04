@@ -4,7 +4,8 @@ defmodule Lapin.Worker do
   """
 
   @connection_mandatory_params [:host, :port, :virtual_host, :channels]
-  @channel_mandatory_params [:exchange, :queue]
+  @channel_mandatory_params [:role, :exchange, :queue]
+  @connection_reconnect_delay 5_000
 
   use AMQP
   use GenServer
@@ -38,6 +39,7 @@ defmodule Lapin.Worker do
 
   def handle_call({:publish, exchange, queue, message}, _from, %{channels: channels} = state) do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, queue),
+         :ok <- channel_has_role(channel_config, :producer),
          channel when not is_nil(channel) <- Keyword.get(channel_config, :channel),
          exchange when not is_nil(exchange) <- Keyword.get(channel_config, :exchange),
          pattern <- Keyword.get(channel_config, :pattern),
@@ -54,6 +56,10 @@ defmodule Lapin.Worker do
         {:reply, {:error, error}, state}
       end
     else
+      {:error, :wrong_role} ->
+        error = "Cannot publish, channel role is not :producer"
+        Logger.error(error)
+        {:reply, {:error, error}, state}
       nil ->
         error = "Error publishing message: no known channel for queue '#{queue}' on exchange '#{exchange}'"
         Logger.debug(error)
@@ -108,8 +114,8 @@ defmodule Lapin.Worker do
 
   # Implement a callback to handle DOWN notifications from the system
   def handle_info({:DOWN, _, :process, _pid, _reason}, %{conf: conf} = state) do
-    Logger.debug("RabbitMQ Connection down, reconnecting in 5 seconds...")
-    :timer.sleep(5)
+    Logger.debug("Connection down, reconnecting in #{@connection_reconnect_delay} seconds...")
+    :timer.sleep(@connection_reconnect_delay)
     {:ok, channels} = connect(conf)
     {:noreply, %{state | channel: channels}}
   end
@@ -156,20 +162,21 @@ defmodule Lapin.Worker do
       {:ok, Enum.map(channels, &create_channel(connection, &1))}
     else
       {:error, :missing_params, missing_params} ->
-        missing_params
+        missing_params = missing_params
         |> Enum.map(&Atom.to_string(&1))
         |> Enum.join(", ")
         error = "Error creating connection #{inspect configuration}: missing mandatory params: #{missing_params}"
         Logger.error(error)
         {:error, error}
       {:error, _} ->
-        :timer.sleep(5_000)
+        :timer.sleep(@connection_reconnect_delay)
         connect(configuration)
     end
   end
 
   defp create_channel(connection, channel_config) do
     with :ok <- check_mandatory_params(channel_config, @channel_mandatory_params),
+         role when not is_nil(role) <- Keyword.get(channel_config, :role),
          exchange when not is_nil(exchange) <- Keyword.get(channel_config, :exchange),
          queue when not is_nil(queue) <- Keyword.get(channel_config, :queue),
          pattern <- Keyword.get(channel_config, :pattern, Lapin.Pattern),
@@ -177,11 +184,11 @@ defmodule Lapin.Worker do
          channel_config <- Keyword.put(channel_config, :channel, channel),
          prefetch <- pattern.consumer_prefetch(channel_config),
          confirm <- pattern.publisher_confirm(channel_config) do
-      if prefetch do
+      if channel_is_consumer?(channel_config) && prefetch do
         :ok = Basic.qos(channel, prefetch_count: prefetch)
       end
 
-      if confirm do
+      if channel_is_producer?(channel_config) && confirm do
         :ok = Confirm.select(channel)
       end
 
@@ -191,12 +198,23 @@ defmodule Lapin.Worker do
            queue_durable <-  pattern.queue_durable(channel_config),
            routing_key <- pattern.routing_key(channel_config),
            :ok <- Exchange.declare(channel, exchange, exchange_type, durable: exchange_durable),
-           {:ok, info} <- Queue.declare(channel, queue, durable: queue_durable, arguments: queue_arguments),
-           :ok <- Queue.bind(channel, queue, exchange, routing_key: routing_key),
-           {:ok, consumer_tag} <- Basic.consume(channel, queue) do
-        Logger.debug("#{consumer_tag}: bound to #{exchange}->#{queue}: #{inspect info}")
+           {:ok, info} <- Queue.declare(channel, queue, durable: queue_durable, arguments: queue_arguments) do
+        channel_config = if channel_is_consumer?(channel_config) do
+          with :ok <- Queue.bind(channel, queue, exchange, routing_key: routing_key),
+               {:ok, consumer_tag} <- Basic.consume(channel, queue) do
+            Logger.debug("#{consumer_tag}: consumer bound to #{exchange}->#{queue}: #{inspect info}")
+            Keyword.put(channel_config, :consumer_tag, consumer_tag)
+          else
+            error ->
+              Logger.debug("Error creating #{channel_config}: #{inspect error}")
+              {:error, error}
+          end
+        else
+          channel_config
+        end
+
         channel_config
-        |> Keyword.merge([ pattern: pattern, channel: channel, consumer_tag: consumer_tag])
+        |> Keyword.merge([pattern: pattern, channel: channel])
       else
         error ->
           Logger.debug("Error creating #{channel_config}: #{inspect error}")
@@ -204,7 +222,7 @@ defmodule Lapin.Worker do
       end
     else
       {:error, :missing_params, missing_params} ->
-        missing_params
+        missing_params = missing_params
         |> Enum.map(&Atom.to_string(&1))
         |> Enum.join(", ")
         error = "Error creating channel #{inspect channel_config}: missing mandatory params: #{missing_params}"
@@ -224,5 +242,31 @@ defmodule Lapin.Worker do
       |> Enum.reject(&Keyword.has_key?(configuration, &1))
       {:error, :missing_params, missing_params}
     end
+  end
+
+  defp channel_has_role(channel_config, :producer) do
+    if channel_is_producer?(channel_config) do
+      :ok
+    else
+      {:error, :wrong_role}
+    end
+  end
+
+  defp channel_has_role(channel_config, :consumer) do
+    if channel_is_consumer?(channel_config) do
+      :ok
+    else
+      {:error, :wrong_role}
+    end
+  end
+
+  defp channel_is_consumer?(channel_config) do
+    role = Keyword.get(channel_config, :role, :no_role)
+    role === :consumer or role === :producer_consumer
+  end
+
+  defp channel_is_producer?(channel_config) do
+    role = Keyword.get(channel_config, :role, :no_role)
+    role == :producer or role == :producer_consumer
   end
 end
