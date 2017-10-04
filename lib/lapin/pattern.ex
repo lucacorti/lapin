@@ -17,6 +17,7 @@ defmodule Lapin.Pattern do
   @type exchange :: String.t
   @type queue :: String.t
   @type error :: {:error, message :: String.t}
+  @type queue_arguments :: [{String.t, atom, String.t}]
 
   @callback consumer_ack(channel_config) :: boolean
   @callback consumer_prefetch(channel_config) :: Integer.t | nil
@@ -26,14 +27,17 @@ defmodule Lapin.Pattern do
 
   @callback publisher_confirm(channel_config) :: boolean
   @callback publisher_persistent(channel_config) :: boolean
+  @callback publisher_mandatory(channel_config) :: boolean
 
+  @callback queue_arguments(channel_config) :: queue_arguments
   @callback queue_durable(channel_config) :: boolean
 
   @callback handle_cancel(channel_config) :: :ok | error
   @callback handle_cancel_ok(channel_config) :: :ok | error
   @callback handle_consume(channel_config, meta :: map , payload :: binary) :: :ok | error
   @callback handle_register(channel_config) :: :ok | error
-  @callback handle_publish(channel_config, message :: binary) :: :ok | error
+  @callback handle_publish(channel_config, payload :: binary) :: :ok | error
+  @callback handle_return(channel_config, meta :: map, payload :: binary) :: :ok | error
 
   defmacro __using__([]) do
     quote do
@@ -44,6 +48,7 @@ defmodule Lapin.Pattern do
       @exchange_type :direct
       @exchange_durable true
       @publisher_confirm false
+      @publisher_mandatory false
       @publisher_persistent true
       @queue_arguments []
       @queue_durable true
@@ -59,6 +64,7 @@ defmodule Lapin.Pattern do
       def handle_publish(_channel_config, _message), do: :ok
       def handle_register(_channel_config), do: :ok
       def publisher_confirm(channel_config), do: Keyword.get(channel_config, :publisher_confirm, @publisher_confirm)
+      def publisher_mandatory(channel_config), do: Keyword.get(channel_config, :publisher_mandatory, @publisher_mandatory)
       def publisher_persistent(channel_config), do: Keyword.get(channel_config, :publisher_persistent, @publisher_persistent)
       def queue_arguments(channel_config), do: Keyword.get(channel_config, :queue_arguments, @queue_arguments)
       def queue_durable(channel_config), do: Keyword.get(channel_config, :queue_durable, @queue_durable)
@@ -67,8 +73,9 @@ defmodule Lapin.Pattern do
       defoverridable [consumer_ack: 1, consumer_prefetch: 1, exchange_type: 1,
                       exchange_durable: 1, handle_cancel: 1, handle_cancel_ok: 1,
                       handle_consume: 3, handle_publish: 2, handle_register: 1,
-                      publisher_confirm: 1, publisher_persistent: 1,
-                      queue_arguments: 1, queue_durable: 1, routing_key: 1]
+                      publisher_confirm: 1, publisher_mandatory: 1,
+                      publisher_persistent: 1, queue_arguments: 1,
+                      queue_durable: 1, routing_key: 1]
     end
   end
 end
