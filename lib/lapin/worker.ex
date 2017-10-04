@@ -27,61 +27,47 @@ defmodule Lapin.Worker do
     end)
   end
 
-  def get_channel_config(channels, exchange, queue) do
-    Enum.find(channels, fn conf ->
-      exchange == Keyword.get(conf, :exchange) && queue == Keyword.get(conf, :queue)
+  def get_channel_config(channels, exchange, routing_key) do
+    Enum.find(channels, fn channel_config ->
+      exchange == Keyword.get(channel_config, :exchange) && routing_key == Keyword.get(channel_config, :routing_key)
     end)
   end
 
-  def publish(exchange, queue, message) do
-    GenServer.call(__MODULE__, {:publish, exchange, queue, message})
+  def publish(exchange, routing_key, message) do
+    GenServer.call(__MODULE__, {:publish, exchange, routing_key, message})
   end
 
-  def handle_call({:publish, exchange, queue, message}, _from, %{channels: channels} = state) do
-    with channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, queue),
-         :ok <- channel_has_role(channel_config, :producer),
+  def handle_call({:publish, exchange, routing_key, message}, _from, %{channels: channels} = state) do
+    with channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, routing_key),
+         true <- channel_is_producer?(channel_config),
          channel when not is_nil(channel) <- Keyword.get(channel_config, :channel),
          exchange when not is_nil(exchange) <- Keyword.get(channel_config, :exchange),
          pattern <- Keyword.get(channel_config, :pattern),
-         routing_key when not is_nil(routing_key) <- pattern.routing_key(channel_config),
+         persistent <- pattern.publisher_persistent(channel_config),
+         mandatory <- pattern.publisher_mandatory(channel_config),
          :ok <- Basic.publish(channel, exchange, routing_key, message,
-          persistent: pattern.publisher_persistent(channel_config)
-        ) do
+                persistent: persistent, mandatory: mandatory) do
       if not pattern.publisher_confirm(channel_config) or Confirm.wait_for_confirms(channel) do
-        Logger.debug("Published #{inspect message} to #{exchange}")
-        {:reply, pattern.handle_publish(channel_config, message), state}
-      else
-        error = "Error publishing #{inspect message} to #{exchange}: broker did not confirm reception"
-        Logger.debug(error)
-        {:reply, {:error, error}, state}
-      end
+          Logger.debug("Published to '#{exchange}'->'#{routing_key}': #{inspect message}")
+          {:reply, pattern.handle_publish(channel_config, message), state}
+        else
+          error = "Error publishing #{inspect message} to #{exchange}: broker did not confirm reception"
+          Logger.debug(error)
+          {:reply, {:error, error}, state}
+        end
     else
-      {:error, :wrong_role} ->
-        error = "Cannot publish, channel role is not :producer"
+      false ->
+        error = "Cannot publish, channel role is not producer"
         Logger.error(error)
         {:reply, {:error, error}, state}
       nil ->
-        error = "Error publishing message: no known channel for queue '#{queue}' on exchange '#{exchange}'"
+        error = "Error publishing message: no channel for routing_key '#{routing_key}' on exchange '#{exchange}'"
         Logger.debug(error)
         {:reply, {:error, error}, state}
       {:error, error} ->
         Logger.debug("Error sending message: #{inspect error}")
         {:reply, {:error, error}, state}
     end
-  end
-
-  def handle_info({:basic_consume_ok, %{consumer_tag: consumer_tag}}, %{channels: channels} = state) do
-    with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
-         pattern <- Keyword.get(channel_config, :pattern),
-         :ok <- pattern.handle_register(channel_config) do
-        Logger.debug("Broker registered consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}")
-    else
-      nil ->
-        Logger.warn("Broker registered consumer_tag '#{consumer_tag}', unknown channel")
-      {:error, error} ->
-        Logger.error("Error in channel registration callback: #{error}")
-    end
-    {:noreply, state}
   end
 
   def handle_info({:basic_cancel, %{consumer_tag: consumer_tag}}, %{channels: channels} = state) do
@@ -112,12 +98,18 @@ defmodule Lapin.Worker do
     {:noreply, state}
   end
 
-  # Implement a callback to handle DOWN notifications from the system
-  def handle_info({:DOWN, _, :process, _pid, _reason}, %{conf: conf} = state) do
-    Logger.debug("Connection down, reconnecting in #{@connection_reconnect_delay} seconds...")
-    :timer.sleep(@connection_reconnect_delay)
-    {:ok, channels} = connect(conf)
-    {:noreply, %{state | channel: channels}}
+  def handle_info({:basic_consume_ok, %{consumer_tag: consumer_tag}}, %{channels: channels} = state) do
+    with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
+         pattern <- Keyword.get(channel_config, :pattern),
+         :ok <- pattern.handle_register(channel_config) do
+        Logger.debug("Broker registered consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}")
+    else
+      nil ->
+        Logger.warn("Broker registered consumer_tag '#{consumer_tag}', unknown channel")
+      {:error, error} ->
+        Logger.error("Broker error registration callback: #{error}")
+    end
+    {:noreply, state}
   end
 
   def handle_info({:basic_deliver, payload, meta}, %{channels: channels} = state) do
@@ -133,11 +125,23 @@ defmodule Lapin.Worker do
     {:noreply, state}
   end
 
+  def handle_info({:DOWN, _, :process, _pid, _reason}, %{conf: conf} = state) do
+    Logger.debug("Connection down, reconnecting in #{@connection_reconnect_delay} seconds...")
+    :timer.sleep(@connection_reconnect_delay)
+    {:ok, channels} = connect(conf)
+    {:noreply, %{state | channel: channels}}
+  end
+
+  def handle_info(msg, state) do
+     Logger.warn("MESSAGE: #{inspect msg}")
+     {:noreply, state}
+  end
+
   defp consume(channel_config, channel, meta, payload) do
     Logger.debug("Consuming message #{meta.delivery_tag}")
     with pattern <- Keyword.get(channel_config, :pattern),
          :ok <- pattern.handle_consume(channel_config, meta, payload) do
-       if not pattern.consumer_ack(channel_config) or Basic.ack(channel, meta.delivery_tag) do
+       if not pattern.consumer_ack(channel_config) || Basic.ack(channel, meta.delivery_tag) do
          Logger.debug("Message #{meta.delivery_tag} consumed successfully, with ACK")
        else
          Logger.debug("Message #{meta.delivery_tag} consumed_successfully, without ACK")
@@ -190,6 +194,8 @@ defmodule Lapin.Worker do
 
       if channel_is_producer?(channel_config) && confirm do
         :ok = Confirm.select(channel)
+        :amqp_channel.register_return_handler(channel.pid, self())
+        :amqp_channel.register_confirm_handler(channel.pid, self())
       end
 
       with exchange_type <- pattern.exchange_type(channel_config),
@@ -197,13 +203,14 @@ defmodule Lapin.Worker do
            queue_arguments <- pattern.queue_arguments(channel_config),
            queue_durable <-  pattern.queue_durable(channel_config),
            routing_key <- pattern.routing_key(channel_config),
-           :ok <- Exchange.declare(channel, exchange, exchange_type, durable: exchange_durable),
-           {:ok, info} <- Queue.declare(channel, queue, durable: queue_durable, arguments: queue_arguments) do
+           :ok <- Exchange.declare(channel, exchange, exchange_type, durable: exchange_durable) do
         channel_config = if channel_is_consumer?(channel_config) do
-          with :ok <- Queue.bind(channel, queue, exchange, routing_key: routing_key),
+          with {:ok, info} <- Queue.declare(channel, queue, durable: queue_durable, arguments: queue_arguments),
+               :ok <- Queue.bind(channel, queue, exchange, routing_key: routing_key),
                {:ok, consumer_tag} <- Basic.consume(channel, queue) do
             Logger.debug("#{consumer_tag}: consumer bound to #{exchange}->#{queue}: #{inspect info}")
-            Keyword.put(channel_config, :consumer_tag, consumer_tag)
+            channel_config
+            |> Keyword.put(:consumer_tag, consumer_tag)
           else
             error ->
               Logger.debug("Error creating #{channel_config}: #{inspect error}")
@@ -214,7 +221,7 @@ defmodule Lapin.Worker do
         end
 
         channel_config
-        |> Keyword.merge([pattern: pattern, channel: channel])
+        |> Keyword.merge([channel: channel, pattern: pattern, routing_key: routing_key])
       else
         error ->
           Logger.debug("Error creating #{channel_config}: #{inspect error}")
@@ -244,29 +251,13 @@ defmodule Lapin.Worker do
     end
   end
 
-  defp channel_has_role(channel_config, :producer) do
-    if channel_is_producer?(channel_config) do
-      :ok
-    else
-      {:error, :wrong_role}
-    end
-  end
-
-  defp channel_has_role(channel_config, :consumer) do
-    if channel_is_consumer?(channel_config) do
-      :ok
-    else
-      {:error, :wrong_role}
-    end
-  end
-
   defp channel_is_consumer?(channel_config) do
     role = Keyword.get(channel_config, :role, :no_role)
-    role === :consumer or role === :producer_consumer
+    role === :consumer
   end
 
   defp channel_is_producer?(channel_config) do
     role = Keyword.get(channel_config, :role, :no_role)
-    role == :producer or role == :producer_consumer
+    role == :producer
   end
 end
