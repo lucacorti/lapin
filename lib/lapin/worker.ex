@@ -170,6 +170,12 @@ defmodule Lapin.Worker do
   defp connect(configuration) do
     with :ok <- check_mandatory_params(configuration, @connection_mandatory_params),
          {channels, configuration} <- Keyword.pop(configuration, :channels, []),
+         {_, configuration} <- Keyword.get_and_update(configuration, :host, fn host -> {
+           {host, to_charlist(host)}
+         } end),
+         {_, configuration} <- Keyword.get_and_update(configuration, :port, fn port -> {
+           {port, String.to_integer(port)}
+         } end),
          {:ok, connection} <- Connection.open(configuration) do
       Process.monitor(connection.pid)
       {:ok, Enum.map(channels, &create_channel(connection, &1))}
