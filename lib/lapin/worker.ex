@@ -61,7 +61,7 @@ defmodule Lapin.Worker do
         Logger.error(error)
         {:reply, {:error, error}, state}
       nil ->
-        error = "Error publishing message: no channel for routing_key '#{routing_key}' on exchange '#{exchange}'"
+        error = "Error publishing message: no channel for '#{exchange}'->'#{routing_key}'"
         Logger.debug(error)
         {:reply, {:error, error}, state}
       {:error, error} ->
@@ -122,6 +122,15 @@ defmodule Lapin.Worker do
       nil ->
         Logger.error("Error processing message #{meta.delivery_tag}, unknown channel")
     end
+    {:noreply, state}
+  end
+
+  def handle_info({:basic_return, payload, %{exchange: exchange, routing_key: routing_key} = meta}, %{channels: channels} = state) do
+    with channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, routing_key),
+         pattern <- Keyword.get(channel_config, :pattern) do
+      pattern.handle_return(channel_config, meta, payload)
+    end
+    Logger.debug("Returned message for '#{exchange}'->'#{routing_key}': #{inspect meta}")
     {:noreply, state}
   end
 
@@ -194,8 +203,7 @@ defmodule Lapin.Worker do
 
       if channel_is_producer?(channel_config) && confirm do
         :ok = Confirm.select(channel)
-        :amqp_channel.register_return_handler(channel.pid, self())
-        :amqp_channel.register_confirm_handler(channel.pid, self())
+        :ok = Basic.return(channel, self())
       end
 
       with exchange_type <- pattern.exchange_type(channel_config),

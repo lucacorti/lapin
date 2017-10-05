@@ -63,6 +63,7 @@ defmodule Lapin.Pattern do
       def handle_consume(_channel_config, _meta, _payload), do: :ok
       def handle_publish(_channel_config, _message), do: :ok
       def handle_register(_channel_config), do: :ok
+      def handle_return(_channel_config, _meta, _payload), do: :ok
       def publisher_confirm(channel_config), do: Keyword.get(channel_config, :publisher_confirm, @publisher_confirm)
       def publisher_mandatory(channel_config), do: Keyword.get(channel_config, :publisher_mandatory, @publisher_mandatory)
       def publisher_persistent(channel_config), do: Keyword.get(channel_config, :publisher_persistent, @publisher_persistent)
@@ -73,9 +74,9 @@ defmodule Lapin.Pattern do
       defoverridable [consumer_ack: 1, consumer_prefetch: 1, exchange_type: 1,
                       exchange_durable: 1, handle_cancel: 1, handle_cancel_ok: 1,
                       handle_consume: 3, handle_publish: 2, handle_register: 1,
-                      publisher_confirm: 1, publisher_mandatory: 1,
-                      publisher_persistent: 1, queue_arguments: 1,
-                      queue_durable: 1, routing_key: 1]
+                      handle_return: 3, publisher_confirm: 1,
+                      publisher_mandatory: 1, publisher_persistent: 1,
+                      queue_arguments: 1, queue_durable: 1, routing_key: 1]
     end
   end
 end
