@@ -35,11 +35,11 @@ defmodule Lapin.Worker do
     end)
   end
 
-  def publish(exchange, routing_key, message) do
-    GenServer.call(__MODULE__, {:publish, exchange, routing_key, message})
+  def publish(exchange, routing_key, message, options \\ []) do
+    GenServer.call(__MODULE__, {:publish, exchange, routing_key, message, options})
   end
 
-  def handle_call({:publish, exchange, routing_key, message}, _from, %{channels: channels} = state) do
+  def handle_call({:publish, exchange, routing_key, message, options}, _from, %{channels: channels} = state) do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, routing_key),
          true <- channel_is_producer?(channel_config),
          channel when not is_nil(channel) <- Keyword.get(channel_config, :channel),
@@ -47,8 +47,8 @@ defmodule Lapin.Worker do
          pattern <- Keyword.get(channel_config, :pattern),
          persistent <- pattern.publisher_persistent(channel_config),
          mandatory <- pattern.publisher_mandatory(channel_config),
-         :ok <- Basic.publish(channel, exchange, routing_key, message,
-                persistent: persistent, mandatory: mandatory) do
+         options <- Keyword.merge([persistent: persistent, mandatory: mandatory], options),
+         :ok <- Basic.publish(channel, exchange, routing_key, message, options) do
       if not pattern.publisher_confirm(channel_config) or Confirm.wait_for_confirms(channel) do
           Logger.debug("Published to '#{exchange}'->'#{routing_key}': #{inspect message}")
           {:reply, pattern.handle_publish(channel_config, message), state}
