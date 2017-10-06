@@ -3,9 +3,10 @@ defmodule Lapin.Worker do
   RabbitMQ connection worker
   """
 
+  @connection_reconnect_delay 5_000
+  @connection_default_params [connecion_timeout: @connection_reconnect_delay]
   @connection_mandatory_params [:host, :port, :virtual_host, :channels]
   @channel_mandatory_params [:role, :exchange, :queue]
-  @connection_reconnect_delay 5_000
 
   use AMQP
   use GenServer
@@ -17,7 +18,8 @@ defmodule Lapin.Worker do
   end
 
   def init(args) do
-    {:ok, channels} = connect(args)
+    {:ok, configuration} = cleanup_configuration(args)
+    {:ok, channels} = connect(configuration)
     {:ok, %{conf: args, channels: channels}}
   end
 
@@ -168,25 +170,12 @@ defmodule Lapin.Worker do
   end
 
   defp connect(configuration) do
-    with :ok <- check_mandatory_params(configuration, @connection_mandatory_params),
-         {channels, configuration} <- Keyword.pop(configuration, :channels, []),
-         {_, configuration} <- Keyword.get_and_update(configuration, :host, fn host ->
-           {host, to_charlist(host)}
-         end),
-         {_, configuration} <- Keyword.get_and_update(configuration, :port, fn port ->
-           {port, String.to_integer(port)}
-         end),
+    with {channels, configuration} <- Keyword.pop(configuration, :channels, []),
+         configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- Connection.open(configuration) do
       Process.monitor(connection.pid)
       {:ok, Enum.map(channels, &create_channel(connection, &1))}
     else
-      {:error, :missing_params, missing_params} ->
-        missing_params = missing_params
-        |> Enum.map(&Atom.to_string(&1))
-        |> Enum.join(", ")
-        error = "Error creating connection #{inspect configuration}: missing mandatory params: #{missing_params}"
-        Logger.error(error)
-        {:error, error}
       {:error, _} ->
         :timer.sleep(@connection_reconnect_delay)
         connect(configuration)
@@ -253,6 +242,26 @@ defmodule Lapin.Worker do
         Logger.error("Error creating channel #{channel_config}: #{inspect error}")
         {:error, error}
     end
+  end
+
+  defp cleanup_configuration(configuration) do
+    with :ok <- check_mandatory_params(configuration, @connection_mandatory_params),
+         {_, configuration} <- Keyword.get_and_update(configuration, :host, fn host ->
+           {host, to_charlist(host)}
+         end),
+         {_, configuration} <- Keyword.get_and_update(configuration, :port, fn port ->
+           {port, String.to_integer(port)}
+         end) do
+     {:ok, configuration}
+   else
+     {:error, :missing_params, missing_params} ->
+       missing_params = missing_params
+       |> Enum.map(&Atom.to_string(&1))
+       |> Enum.join(", ")
+       error = "Error creating connection #{inspect configuration}: missing mandatory params: #{missing_params}"
+       Logger.error(error)
+       {:error, error}
+   end
   end
 
   defp check_mandatory_params(configuration, params) do
