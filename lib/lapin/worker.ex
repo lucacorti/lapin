@@ -247,14 +247,19 @@ defmodule Lapin.Worker do
   defp cleanup_configuration(configuration) do
     with :ok <- check_mandatory_params(configuration, @connection_mandatory_params),
          {_, configuration} <- Keyword.get_and_update(configuration, :auth_mechanisms, fn mechanisms ->
-           {mechanisms, Enum.map(mechanisms, fn mechanism ->
-             case mechanism do
-               :external ->
-                 &:amqp_auth_mechanisms.external/3
-               mechanism ->
-                 mechanism
-             end
-           end)}
+           case mechanisms do
+             list when is_list(mechanisms) ->
+               {mechanisms, Enum.map(mechanisms, fn mechanism ->
+                 case mechanism do
+                   :external ->
+                     &:amqp_auth_mechanisms.external/3
+                   mechanism ->
+                     mechanism
+                 end
+               end)}
+            _ ->
+              {mechanisms, mechanisms}
+          end
          end),
          {_, configuration} <- Keyword.get_and_update(configuration, :host, fn host ->
            {host, to_charlist(host)}
