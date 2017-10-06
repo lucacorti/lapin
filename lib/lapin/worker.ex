@@ -251,8 +251,12 @@ defmodule Lapin.Worker do
              list when is_list(mechanisms) ->
                {mechanisms, Enum.map(mechanisms, fn mechanism ->
                  case mechanism do
+                   :amqplain ->
+                     &:amqp_auth_mechanisms.amqplain/3
                    :external ->
                      &:amqp_auth_mechanisms.external/3
+                   :plain ->
+                     &:amqp_auth_mechanisms.plain/3
                    mechanism ->
                      mechanism
                  end
