@@ -12,30 +12,29 @@ defmodule Lapin.Pattern do
   just use the static configuration if you do not need dynamic behaviour.
   """
 
-  @type channel_config :: Keyword.t
+  alias Lapin.Worker
+
   @type consumer_tag :: String.t
   @type exchange :: String.t
   @type queue :: String.t
   @type queue_arguments :: [{String.t, atom, String.t}]
-  @type meta :: map
-  @type payload :: binary
   @type prefetch :: Integer.t | nil
   @type routing_key :: String
 
-  @callback consumer_ack(channel_config) :: boolean
-  @callback consumer_prefetch(channel_config) :: prefetch
+  @callback consumer_ack(Worker.channel_config) :: boolean
+  @callback consumer_prefetch(Worker.channel_config) :: prefetch
 
-  @callback exchange_type(channel_config) :: boolean
-  @callback exchange_durable(channel_config) :: boolean
+  @callback exchange_type(Worker.channel_config) :: boolean
+  @callback exchange_durable(Worker.channel_config) :: boolean
 
-  @callback publisher_confirm(channel_config) :: boolean
-  @callback publisher_persistent(channel_config) :: boolean
-  @callback publisher_mandatory(channel_config) :: boolean
+  @callback publisher_confirm(Worker.channel_config) :: boolean
+  @callback publisher_persistent(Worker.channel_config) :: boolean
+  @callback publisher_mandatory(Worker.channel_config) :: boolean
 
-  @callback queue_arguments(channel_config) :: queue_arguments
-  @callback queue_durable(channel_config) :: boolean
+  @callback queue_arguments(Worker.channel_config) :: queue_arguments
+  @callback queue_durable(Worker.channel_config) :: boolean
 
-  @callback routing_key(channel_config) :: routing_key
+  @callback routing_key(Worker.channel_config) :: routing_key
 
   defmacro __using__([]) do
     quote do

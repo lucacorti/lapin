@@ -2,24 +2,24 @@ defmodule Lapin.Worker do
   @moduledoc """
   RabbitMQ connection worker
   """
+  alias Lapin.Message
 
   @type channel_config :: Keyword.t
-  @type meta :: map
-  @type payload :: binary
-  @type error :: {:error, message :: String.t}
+  @type on_callback :: :ok | {:error, message :: String.t}
 
-  @callback handle_cancel(channel_config) :: :ok | error
-  @callback handle_cancel_ok(channel_config) :: :ok | error
-  @callback handle_consume(channel_config, meta, payload) :: :ok | error
-  @callback handle_register(channel_config) :: :ok | error
-  @callback handle_publish(channel_config, payload) :: :ok | error
-  @callback handle_return(channel_config, meta, payload) :: :ok | error
+  @callback handle_cancel(channel_config) :: on_callback
+  @callback handle_cancel_ok(channel_config) :: on_callback
+  @callback handle_consume(channel_config, message :: Message.t) :: on_callback
+  @callback handle_register(channel_config) :: on_callback
+  @callback handle_publish(channel_config, message :: Message.t) :: on_callback
+  @callback handle_return(channel_config, message :: Message.t) :: on_callback
 
   defmacro __using__(_) do
     use AMQP
 
     quote do
       use GenServer
+      alias Lapin.Message
       require Logger
 
       @behaviour Lapin.Worker
@@ -147,7 +147,7 @@ defmodule Lapin.Worker do
       def handle_info({:basic_return, payload, %{exchange: exchange, routing_key: routing_key} = meta}, %{channels: channels} = state) do
         with channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, routing_key),
              pattern <- Keyword.get(channel_config, :pattern),
-             :ok <- handle_return(channel_config, meta, payload) do
+             :ok <- handle_return(channel_config, %Message{meta: meta, payload: payload}) do
           Logger.debug("Returned message for '#{exchange}'->'#{routing_key}': #{inspect meta}")
         else
           error ->
@@ -157,7 +157,7 @@ defmodule Lapin.Worker do
       end
 
       def handle_info({:DOWN, _, :process, _pid, _reason}, %{conf: conf} = state) do
-        Logger.debug("Connection down, reconnecting in #{@connection_reconnect_delay} seconds...")
+        Logger.warn("Connection down, reconnecting in #{@connection_reconnect_delay} seconds...")
         :timer.sleep(@connection_reconnect_delay)
         {:ok, channels} = connect(conf)
         {:noreply, %{state | channel: channels}}
@@ -171,7 +171,7 @@ defmodule Lapin.Worker do
       defp consume(channel_config, channel, meta, payload) do
         Logger.debug("Consuming message #{meta.delivery_tag}")
         with pattern <- Keyword.get(channel_config, :pattern),
-             :ok <- handle_consume(channel_config, meta, payload) do
+             :ok <- handle_consume(channel_config, %Message{meta: meta, payload: payload}) do
            if not pattern.consumer_ack(channel_config) || Basic.ack(channel, meta.delivery_tag) do
              Logger.debug("Message #{meta.delivery_tag} consumed successfully, with ACK")
            else
@@ -273,7 +273,7 @@ defmodule Lapin.Worker do
              {_, configuration} <- Keyword.get_and_update(configuration, :port, fn port ->
                {port, String.to_integer(port)}
              end),
-             configuration <- cleanup_auth_mechanisms(configuration) do
+             configuration <- map_auth_mechanisms(configuration) do
          {:ok, configuration}
        else
          {:error, :missing_params, missing_params} ->
@@ -286,7 +286,7 @@ defmodule Lapin.Worker do
        end
       end
 
-      defp cleanup_auth_mechanisms(configuration) do
+      defp map_auth_mechanisms(configuration) do
         {_, configuration} = configuration
         |> Keyword.get_and_update(:auth_mechanisms, fn mechanisms ->
           case mechanisms do
@@ -332,13 +332,13 @@ defmodule Lapin.Worker do
 
       def handle_cancel(_channel_config), do: :ok
       def handle_cancel_ok(_channel_config), do: :ok
-      def handle_consume(_channel_config, _meta, _payload), do: :ok
+      def handle_consume(_channel_config, _message), do: :ok
       def handle_publish(_channel_config, _message), do: :ok
       def handle_register(_channel_config), do: :ok
-      def handle_return(_channel_config, _meta, _payload), do: :ok
+      def handle_return(_channel_config, _message), do: :ok
 
-      defoverridable [handle_cancel: 1, handle_cancel_ok: 1, handle_consume: 3,
-                      handle_publish: 2, handle_register: 1, handle_return: 3]
+      defoverridable [handle_cancel: 1, handle_cancel_ok: 1, handle_consume: 2,
+                      handle_publish: 2, handle_register: 1, handle_return: 2]
     end
   end
 end
