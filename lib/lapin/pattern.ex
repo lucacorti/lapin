@@ -1,15 +1,20 @@
 defmodule Lapin.Pattern do
   @moduledoc """
-  Lapin Pattern behaviour
+  Extensible behaviour to define Lapin Pattern modules.
 
-  Extensible behaviour to define Lapin Pattern modules. To configure your channels
-  you can use the builtin Lapin.Pattern.* modules, extend any of them or extend
-  Lapin.Pattern directly to define your custom RabbitMQ integration pattern and
-  specify it in your channel configuration under the :pattern key.
+  To configure your channels you can use the builtin `Lapin.Pattern` submodules
+  to define the various knobs needed to interact with the RabbitMQ broker.
+  Lapin provides a number of modules which impelment the patterns found in the
+  [RabbitMQ Tutorials](http://www.rabbitmq.com/getstarted.html).
 
-  Please note that Lapin.Pattern mostly reads values from the configuration and
-  tries to provide sensible defaults when configuration is missing, so you can
-  just use the static configuration if you do not need dynamic behaviour.
+  To define your custom RabbitMQ interaction pattern you can extend
+  the `Lapin.Pattern` behaviour and redefining the relevant callbacks.
+
+  Patterns are configured per channel in your channel configuration under
+  the :pattern key. If not specified, it falls back to the `Lapin.Pattern`
+  module, which tries to read most settings from the configuration and provides
+  sensible defaults. You can just use the static configuration if you do not need
+  to determine your `Lapin.Pattern` values dynamically at runtime.
   """
 
   alias Lapin.Worker

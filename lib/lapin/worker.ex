@@ -1,10 +1,24 @@
 defmodule Lapin.Worker do
   @moduledoc """
-  RabbitMQ connection worker
+  RabbitMQ connection behaviour
   """
   alias Lapin.Message
 
+  @typedoc """
+  Lapin configuration
+  """
+  @type config :: [connections: list(connection_config)]
+
+  @typedoc """
+  Lapin connection configuration
+  """
+  @type connection_config :: [channels: list(channel_config)]
+
+  @typedoc """
+  Lapin channel configuration
+  """
   @type channel_config :: Keyword.t
+
   @type on_callback :: :ok | {:error, message :: String.t}
 
   @callback handle_cancel(channel_config) :: on_callback

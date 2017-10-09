@@ -1,4 +1,7 @@
 defmodule Lapin.Supervisor do
+  @moduledoc """
+  Lapin Supervisor
+  """
   use Supervisor
 
   def start_link(config) do

@@ -1,6 +1,6 @@
 defmodule Lapin.Message do
   @moduledoc """
-  RabbitMQ Message Structure
+  AMQP Message Structure
   """
 
   @type meta :: map

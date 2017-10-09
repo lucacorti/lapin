@@ -1,4 +1,10 @@
 defmodule Lapin.Pattern.WorkQueue do
+  @moduledoc """
+  Lapin.Pattern implementation for the
+  [Work Queues](http://www.rabbitmq.com/tutorials/tutorial-two-elixir.html)
+  RabbitMQ pattern.
+  """
+
   use Lapin.Pattern
 
   def consumer_ack(channel_config), do: Keyword.get(channel_config, :consumer_ack, true)
