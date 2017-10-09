@@ -16,8 +16,9 @@ defmodule Lapin.Worker do
   @callback handle_return(channel_config, meta, payload) :: :ok | error
 
   defmacro __using__(_) do
+    use AMQP
+
     quote do
-      use AMQP
       use GenServer
       require Logger
 
