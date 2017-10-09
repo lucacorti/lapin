@@ -283,7 +283,7 @@ defmodule Lapin.Worker do
        end
       end
 
-      def cleanup_auth_mechanisms(configuration) do
+      defp cleanup_auth_mechanisms(configuration) do
         {_, configuration} = configuration
         |> Keyword.get_and_update(:auth_mechanisms, fn mechanisms ->
           case mechanisms do
