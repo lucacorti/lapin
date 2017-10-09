@@ -6,8 +6,9 @@ defmodule Lapin.Supervisor do
   end
 
   def init(config) do
+    {module, config} = Keyword.pop(config, :worker)
     [
-      worker(Lapin.Worker, [config])
+      worker(module, [config])
     ]
     |> supervise(strategy: :one_for_one)
   end

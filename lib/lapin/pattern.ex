@@ -16,11 +16,14 @@ defmodule Lapin.Pattern do
   @type consumer_tag :: String.t
   @type exchange :: String.t
   @type queue :: String.t
-  @type error :: {:error, message :: String.t}
   @type queue_arguments :: [{String.t, atom, String.t}]
+  @type meta :: map
+  @type payload :: binary
+  @type prefetch :: Integer.t | nil
+  @type routing_key :: String
 
   @callback consumer_ack(channel_config) :: boolean
-  @callback consumer_prefetch(channel_config) :: Integer.t | nil
+  @callback consumer_prefetch(channel_config) :: prefetch
 
   @callback exchange_type(channel_config) :: boolean
   @callback exchange_durable(channel_config) :: boolean
@@ -32,24 +35,19 @@ defmodule Lapin.Pattern do
   @callback queue_arguments(channel_config) :: queue_arguments
   @callback queue_durable(channel_config) :: boolean
 
-  @callback handle_cancel(channel_config) :: :ok | error
-  @callback handle_cancel_ok(channel_config) :: :ok | error
-  @callback handle_consume(channel_config, meta :: map , payload :: binary) :: :ok | error
-  @callback handle_register(channel_config) :: :ok | error
-  @callback handle_publish(channel_config, payload :: binary) :: :ok | error
-  @callback handle_return(channel_config, meta :: map, payload :: binary) :: :ok | error
+  @callback routing_key(channel_config) :: routing_key
 
   defmacro __using__([]) do
     quote do
       @behaviour Lapin.Pattern
 
-      @consumer_ack true
+      @consumer_ack false
       @consumer_prefetch nil
       @exchange_type :direct
       @exchange_durable true
       @publisher_confirm false
       @publisher_mandatory false
-      @publisher_persistent true
+      @publisher_persistent false
       @queue_arguments []
       @queue_durable true
       @routing_key ""
@@ -58,12 +56,6 @@ defmodule Lapin.Pattern do
       def consumer_prefetch(channel_config), do: Keyword.get(channel_config, :consumer_prefetch, @consumer_prefetch)
       def exchange_type(channel_config), do: Keyword.get(channel_config, :exchange_type, @exchange_type)
       def exchange_durable(channel_config), do: Keyword.get(channel_config, :exchange_durable, @exchange_durable)
-      def handle_cancel(_channel_config), do: :ok
-      def handle_cancel_ok(_channel_config), do: :ok
-      def handle_consume(_channel_config, _meta, _payload), do: :ok
-      def handle_publish(_channel_config, _message), do: :ok
-      def handle_register(_channel_config), do: :ok
-      def handle_return(_channel_config, _meta, _payload), do: :ok
       def publisher_confirm(channel_config), do: Keyword.get(channel_config, :publisher_confirm, @publisher_confirm)
       def publisher_mandatory(channel_config), do: Keyword.get(channel_config, :publisher_mandatory, @publisher_mandatory)
       def publisher_persistent(channel_config), do: Keyword.get(channel_config, :publisher_persistent, @publisher_persistent)
@@ -72,9 +64,7 @@ defmodule Lapin.Pattern do
       def routing_key(channel_config), do: Keyword.get(channel_config, :routing_key, @routing_key)
 
       defoverridable [consumer_ack: 1, consumer_prefetch: 1, exchange_type: 1,
-                      exchange_durable: 1, handle_cancel: 1, handle_cancel_ok: 1,
-                      handle_consume: 3, handle_publish: 2, handle_register: 1,
-                      handle_return: 3, publisher_confirm: 1,
+                      exchange_durable: 1, publisher_confirm: 1,
                       publisher_mandatory: 1, publisher_persistent: 1,
                       queue_arguments: 1, queue_durable: 1, routing_key: 1]
     end
