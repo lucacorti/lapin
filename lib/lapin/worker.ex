@@ -304,7 +304,7 @@ defmodule Lapin.Worker do
                 end
               end)}
             _ ->
-              {mechanisms, mechanisms}
+              :pop
          end
        end)
        configuration
