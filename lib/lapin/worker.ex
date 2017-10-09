@@ -262,22 +262,14 @@ defmodule Lapin.Worker do
         end
       end
 
-      defp cleanup_configuration(configuration) when is_binary(port) do
-        {_, configuration} <- Keyword.get_and_update(configuration, :port, fn port ->
-          {port, String.to_integer(port)}
-        end)
-        cleanup_configuration(configuration)
-      end
-
-      defp cleanup_configuration(configuration) when is_binary(host) do
-        {_, configuration} <- Keyword.get_and_update(configuration, :host, fn host ->
-          {host, to_charlist(host)}
-        end)
-        cleanup_configuration(configuration)
-      end
-
       defp cleanup_configuration(configuration) do
         with :ok <- check_mandatory_params(configuration, @connection_mandatory_params),
+             {_, configuration} <- Keyword.get_and_update(configuration, :host, fn host ->
+               {host, to_charlist(host)}
+             end),
+             {_, configuration} <- Keyword.get_and_update(configuration, :port, fn port ->
+               {port, String.to_integer(port)}
+             end),
              configuration <- cleanup_auth_mechanisms(configuration) do
          {:ok, configuration}
        else
