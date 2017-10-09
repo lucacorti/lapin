@@ -228,10 +228,10 @@ defmodule Lapin.Worker do
                routing_key <- pattern.routing_key(channel_config),
                consumer_ack <- pattern.consumer_ack(channel_config),
                :ok <- Exchange.declare(channel, exchange, exchange_type, durable: exchange_durable),
-               {:ok, info} <- Queue.declare(channel, queue, durable: queue_durable, arguments: queue_arguments) do
+               {:ok, info} <- Queue.declare(channel, queue, durable: queue_durable, arguments: queue_arguments),
+               :ok <- Queue.bind(channel, queue, exchange, routing_key: routing_key) do
             channel_config = if channel_is_consumer?(channel_config) do
-              with :ok <- Queue.bind(channel, queue, exchange, routing_key: routing_key),
-                   {:ok, consumer_tag} <- Basic.consume(channel, queue, nil, no_ack: not consumer_ack) do
+              with {:ok, consumer_tag} <- Basic.consume(channel, queue, nil, no_ack: not consumer_ack) do
                 Logger.debug("#{consumer_tag}: consumer bound to #{exchange}->#{queue}: #{inspect info}")
                 channel_config
                 |> Keyword.put(:consumer_tag, consumer_tag)
