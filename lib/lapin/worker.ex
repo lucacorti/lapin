@@ -146,10 +146,13 @@ defmodule Lapin.Worker do
 
       def handle_info({:basic_return, payload, %{exchange: exchange, routing_key: routing_key} = meta}, %{channels: channels} = state) do
         with channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, routing_key),
-             pattern <- Keyword.get(channel_config, :pattern) do
-          handle_return(channel_config, meta, payload)
+             pattern <- Keyword.get(channel_config, :pattern),
+             :ok <- handle_return(channel_config, meta, payload) do
+          Logger.debug("Returned message for '#{exchange}'->'#{routing_key}': #{inspect meta}")
+        else
+          error ->
+            Logger.debug("Error handling returned message: #{inspect error}")
         end
-        Logger.debug("Returned message for '#{exchange}'->'#{routing_key}': #{inspect meta}")
         {:noreply, state}
       end
 
