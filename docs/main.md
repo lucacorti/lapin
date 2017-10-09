@@ -63,8 +63,8 @@ run your application with `iex -S mix` and publish a message:
 iex(1)> Lapin.Connection.publish("some_exchange", "some_queue", %Lapin.Message{payload: "test"})
 [debug] Published to 'test'->'test': %Lapin.Message{meta: nil, payload: "test"}
 :ok
-[debug] Consuming message 3
-[debug] Message 3 consumed successfully, with ACK
+[debug] Consuming message 1
+[debug] Message 1 consumed successfully, with ACK
 ...
 ```
 
