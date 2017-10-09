@@ -300,8 +300,8 @@ defmodule Lapin.Worker do
                     mechanism
                 end
               end)}
-           _ ->
-             {mechanisms, mechanisms}
+            _ ->
+              {mechanisms, mechanisms}
          end
        end)
        configuration
