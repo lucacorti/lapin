@@ -6,7 +6,7 @@ defmodule Lapin.Application do
   use Application
 
   def start(_type, _args) do
-    config = Application.get_env(:lapin, :connections, [])
-    Lapin.Supervisor.start_link(config)
+    Application.get_env(:lapin, :connections, [])
+    |> Lapin.Supervisor.start_link()
   end
 end
