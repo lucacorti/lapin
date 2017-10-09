@@ -27,8 +27,8 @@ defmodule Lapin.Mixfile do
     [
       {:ex_doc, ">= 0.0.0", only: [:dev]},
       {:earmark, ">= 0.0.0", only: [:dev]},
-      {:credo, "~> 0.4", only: [:dev]},
-      {:dialyxir, "~> 0.3.3", only: [:dev]},
+      {:credo, ">= 0.0.0", only: [:dev]},
+      {:dialyxir, ">= 0.0.0", only: [:dev]},
       {:amqp, "~> 0.3.0"}
     ]
   end
