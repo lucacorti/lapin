@@ -1,6 +1,6 @@
 defmodule Lapin.Connection do
   @moduledoc """
-  RabbitMQ connection worker
+  RabbitMQ connection handler
   """
   use AMQP
   use GenServer
