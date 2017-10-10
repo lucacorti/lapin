@@ -110,11 +110,11 @@ defmodule Lapin.Connection do
          options <- Keyword.merge([persistent: persistent, mandatory: mandatory], options),
          :ok <- Basic.publish(channel, exchange, routing_key, message.payload, options) do
       if not pattern.publisher_confirm(channel_config) or Confirm.wait_for_confirms(channel) do
-          Logger.debug("Published to '#{exchange}'->'#{routing_key}': #{inspect message}")
+          Logger.debug(fn -> "Published to '#{exchange}'->'#{routing_key}': #{inspect message}" end)
           {:reply, worker.handle_publish(channel_config, message), state}
         else
           error = "Error publishing #{inspect message} to #{exchange}: broker did not confirm reception"
-          Logger.debug(error)
+          Logger.debug(fn -> error end)
           {:reply, {:error, error}, state}
         end
     else
@@ -124,10 +124,10 @@ defmodule Lapin.Connection do
         {:reply, {:error, error}, state}
       nil ->
         error = "Error publishing message: no channel for '#{exchange}'->'#{routing_key}'"
-        Logger.debug(error)
+        Logger.debug(fn -> error end)
         {:reply, {:error, error}, state}
       {:error, error} ->
-        Logger.debug("Error sending message: #{inspect error}")
+        Logger.debug(fn -> "Error sending message: #{inspect error}" end)
         {:reply, {:error, error}, state}
     end
   end
@@ -136,7 +136,7 @@ defmodule Lapin.Connection do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
          worker <- Keyword.get(channel_config, :worker),
          :ok <- worker.handle_cancel(channel_config) do
-        Logger.debug("Broker cancelled consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}")
+        Logger.debug(fn -> "Broker cancelled consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end)
     else
       nil ->
         Logger.warn("Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown channel")
@@ -150,10 +150,10 @@ defmodule Lapin.Connection do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
          worker <- Keyword.get(channel_config, :worker),
          :ok <- worker.handle_cancel_ok(channel_config) do
-      Logger.debug("Broker confirmed cancel consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}")
+      Logger.debug(fn -> "Broker confirmed cancel consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end)
     else
       nil ->
-        Logger.debug("Broker confirmed cancel for consumer_tag '#{consumer_tag}' for locally unknown channel")
+        Logger.debug(fn -> "Broker confirmed cancel for consumer_tag '#{consumer_tag}' for locally unknown channel" end)
       {:error, error} ->
         Logger.error("Error confirming cancel for consumer_tag '#{consumer_tag}': #{error}")
     end
@@ -164,7 +164,7 @@ defmodule Lapin.Connection do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
          worker <- Keyword.get(channel_config, :worker),
          :ok <- worker.handle_consume_ok(channel_config) do
-        Logger.debug("Broker registered consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}")
+        Logger.debug(fn -> "Broker registered consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end)
     else
       nil ->
         Logger.warn("Broker registered consumer_tag '#{consumer_tag}', unknown channel")
@@ -191,10 +191,10 @@ defmodule Lapin.Connection do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, routing_key),
          worker <- Keyword.get(channel_config, :worker),
          :ok <- worker.handle_return(channel_config, %Message{meta: meta, payload: payload}) do
-      Logger.debug("Returned message for '#{exchange}'->'#{routing_key}': #{inspect meta}")
+      Logger.debug(fn -> "Returned message for '#{exchange}'->'#{routing_key}': #{inspect meta}" end)
     else
       error ->
-        Logger.debug("Error handling returned message: #{inspect error}")
+        Logger.debug(fn -> "Error handling returned message: #{inspect error}" end)
     end
     {:noreply, state}
   end
@@ -212,19 +212,19 @@ defmodule Lapin.Connection do
   end
 
   defp consume(channel_config, channel, meta, payload) do
-    Logger.debug("Consuming message #{meta.delivery_tag}")
+    Logger.debug(fn -> "Consuming message #{meta.delivery_tag}" end)
     with worker <- Keyword.get(channel_config, :worker),
          pattern <- worker.pattern(),
          :ok <- worker.handle_deliver(channel_config, %Message{meta: meta, payload: payload}) do
        if not pattern.consumer_ack(channel_config) || Basic.ack(channel, meta.delivery_tag) do
-         Logger.debug("Message #{meta.delivery_tag} consumed successfully, with ACK")
+         Logger.debug(fn -> "Message #{meta.delivery_tag} consumed successfully, with ACK" end)
        else
-         Logger.debug("Message #{meta.delivery_tag} consumed_successfully, without ACK")
+         Logger.debug(fn -> "Message #{meta.delivery_tag} consumed_successfully, without ACK" end)
        end
      else
       error ->
         Basic.reject(channel, meta.delivery_tag, requeue: false)
-        Logger.debug("Message #{meta.delivery_tag} NOT consumed: #{inspect error}")
+        Logger.debug(fn -> "Message #{meta.delivery_tag} NOT consumed: #{inspect error}" end)
     end
 
     rescue
@@ -277,12 +277,12 @@ defmodule Lapin.Connection do
            :ok <- Queue.bind(channel, queue, exchange, routing_key: routing_key) do
         channel_config = if channel_is_consumer?(channel_config) do
           with {:ok, consumer_tag} <- Basic.consume(channel, queue, nil, no_ack: not consumer_ack) do
-            Logger.debug("#{consumer_tag}: consumer bound to #{exchange}->#{queue}: #{inspect info}")
+            Logger.debug(fn -> "#{consumer_tag}: consumer bound to #{exchange}->#{queue}: #{inspect info}" end)
             channel_config
             |> Keyword.put(:consumer_tag, consumer_tag)
           else
             error ->
-              Logger.debug("Error creating #{channel_config}: #{inspect error}")
+              Logger.debug(fn -> "Error creating #{channel_config}: #{inspect error}" end)
               {:error, error}
           end
         else
@@ -293,7 +293,7 @@ defmodule Lapin.Connection do
         |> Keyword.merge([channel: channel, worker: worker, routing_key: routing_key])
       else
         error ->
-          Logger.debug("Error creating #{channel_config}: #{inspect error}")
+          Logger.debug(fn -> "Error creating #{channel_config}: #{inspect error}" end)
           {:error, error}
       end
     else
