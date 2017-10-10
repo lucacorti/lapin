@@ -41,6 +41,8 @@ defmodule Lapin.Connection do
     - host: broker hostname (string | charlist), *default: 'localhost'*
     - port: broker port (string | integer), *default: 5672*
     - virtual_host: broker vhost (string)
+    - username: username (string)
+    - password: password (string)
     - auth_mechanisms: broker auth_mechanisms ([:amqplain | :external | :plain]), *default: amqp_client default*
     - ssl_options: ssl options ([:ssl:ssl_option]), *default: none*
     - channels: channels to configure ([channel_config]), *default: []*
