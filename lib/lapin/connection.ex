@@ -56,7 +56,7 @@ defmodule Lapin.Connection do
     - exchange: broker exchange (string)
     - queue: broker queue (string)
 
-  If using the default pattern implementation, the following keys are also supported:
+  If using the default `Lapin.Pattern` implementation, the following keys are also supported:
     - consumer_ack: send consumer ack (boolean), *default: false*
     - consumer_prefetch cosumer prefetch (integer | nil), *default: nil*
     - exchange_type: declare type of the exchange (:direct, :fanout, :topic), *default: :direct*
