@@ -2,7 +2,7 @@ defmodule Lapin.Worker do
   @moduledoc """
   Lapin Worker behaviour
 
-  Implementing a custome Lapin Worker behaviour:
+  To Implement a custom `Lapin.Worker` behaviour define a module:
 
   ```
   defmodule MyApp.MyWorker do
@@ -12,7 +12,7 @@ defmodule Lapin.Worker do
   end
   ```
 
-  A custom module extending `Lapin.Pattern` can be used with the `pattern` option:
+  A custom `Lapin.Pattern` module can be specified using the `pattern` option:
 
   ```
   defmodule MyApp.MyWorker do
