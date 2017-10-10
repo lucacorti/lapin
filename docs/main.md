@@ -27,7 +27,7 @@ example:
 ```
 config :lapin, :connections, [
   [
-    virtual_host: "some_vhost",
+    handle: :myhandle
     channels: [
       [
         worker: MyApp.SomeWorker,
@@ -59,7 +59,7 @@ run your application with `iex -S mix` and publish a message:
 
 ```
 ...
-iex(1)> Lapin.Connection.publish("some_exchange", "some_queue", %Lapin.Message{payload: "test"})
+iex(1)> Lapin.publish(:myhandle, "some_exchange", "some_queue", %Lapin.Message{payload: "test"})
 [debug] Published to 'test'->'test': %Lapin.Message{meta: nil, payload: "test"}
 :ok
 [debug] Consuming message 1
@@ -84,7 +84,7 @@ implement a custom `Lapin.Worker` module and adding it under the `worker` key in
 your channel configuration. For details on implementing a custom worker module
 check out the `Lapin.Worker` behaviour documentation.
 
-At a minimum, you need to configure *virtual_host* for each connection and
+At a minimum, you need to configure a *handle* for each connection and
 *role*, *worker*, *exchange* and *queue* for each channel.
 You can find a a complete list of connection configuration settings in the in
 `Lapin.Connection` *config* type specification.
@@ -112,7 +112,7 @@ end
 ```
 config :lapin, :connections, [
   [
-    virtual_host: "some_vhost",
+    handle: :myhandle,
     channels: [
       [
         worker: MyApp.SomeWorker,
@@ -173,7 +173,6 @@ end
 ```
 config :lapin, :connections, [
   [
-    virtual_host: "some_vhost",
     channels: [
       [
         worker: MyApp.SomeWorker,
@@ -201,6 +200,66 @@ file and tries to provide sensible defaults for unspecified settings.
 
 ## Usage ##
 
+### Consuming messages ###
+
+Once you have completed your configuration, connections will be automatically
+established and the worker modules with `:consumer` role will start receiving
+message published on their queues.
+
+You can handle received messages by overriding the `Lapin.Worker.handle_deliver/2`
+callback. The default implementation does nothing.
+
 ```
-EXAMPLE NEEDED
+defmodule MyApp.SomeWorker do
+  use Lapin.Worker, pattern: MyApp.SomePattern
+
+  def handle_deliver(channel_config, message) do
+    Logger.debug(fn -> "received message: #{inspect message} on channel: #{inspect channel_config}")
+    :ok
+  end
+end
+```
+
+Messages are considered to be successfully consumed if
+`Lapin.Worker.handle_deliver/2` returns `:ok`.
+
+### Publishing messages ###
+
+To publish messages with workers with `:producer` role, you can use the
+`Lapin.publish/5` function passing the connection handle for your connection,
+or directly call `Lapin.Connection.publish/5` if you manually started a connection
+with `Lapin.Connection.start_link/1`.
+
+`config/config.exs`:
+
+```
+config :lapin, :connections, [
+  [
+    handle: :myhandle,
+    channels: [
+      [
+        role: :producer,
+        worker: MyApp.SomeWorker,
+        exchange: "some_exchange",
+        queue: "some_queue"
+      ]
+    ]
+  ]
+]
+```
+
+Via `Lapin`:
+
+```
+:ok = Lapin.publish(:myhandle, "some_exchange", "routing_key", %Lapin.Message{}, [])  
+```
+
+or via `Lapin.Connection` directly if you are not starting the `:lapin` `Application`:
+
+```
+connection_config = :lapin
+|> Application.get(:connections, [])
+|> Enum.at(0)
+{:ok, connection} = Lapin.start_link(connection_config)
+:ok = Lapin.Connection.publish(connection, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```

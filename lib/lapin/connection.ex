@@ -40,7 +40,7 @@ defmodule Lapin.Connection do
   The following keys are supported:
     - host: broker hostname (string | charlist), *default: 'localhost'*
     - port: broker port (string | integer), *default: 5672*
-    - virtual_host: broker vhost (string)
+    - virtual_host: broker vhost (string), *default: ""*
     - username: username (string)
     - password: password (string)
     - auth_mechanisms: broker auth_mechanisms ([:amqplain | :external | :plain]), *default: amqp_client default*
@@ -74,29 +74,30 @@ defmodule Lapin.Connection do
 
   @connection_reconnect_delay 5_000
   @connection_default_params [connecion_timeout: @connection_reconnect_delay]
-  @connection_mandatory_params [:host, :port, :virtual_host, :channels]
+  @connection_mandatory_params [:handle]
   @channel_mandatory_params [:role, :worker, :exchange, :queue]
 
   @doc """
   Starts a `Lapin.Connection` with the specified configuration
   """
-  @spec start_link(config) :: GenServer.on_start
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args, name: __MODULE__)
+  @spec start_link(config, options :: GenServer.options) :: GenServer.on_start
+  def start_link(configuration, options \\ []) do
+    {:ok, configuration} = cleanup_configuration(configuration)
+    GenServer.start_link(__MODULE__, configuration, options)
   end
 
-  def init(args) do
-    {:ok, configuration} = cleanup_configuration(args)
+  def init(configuration) do
     {:ok, channels} = connect(configuration)
-    {:ok, %{conf: configuration, channels: channels}}
+    {:ok, %{configuration: configuration, channels: channels}}
   end
 
   @doc """
   Publishes a message to the specified exchange with the given routing_key
   """
-  @spec publish(exchange, routing_key, message :: Message.t, options :: Keyword.t) :: Worker.on_callback
-  def publish(exchange, routing_key, message, options \\ []) do
-    GenServer.call(__MODULE__, {:publish, exchange, routing_key, message, options})
+  @spec publish(server :: GenServer.server, exchange, routing_key,
+  message :: Message.t, options :: Keyword.t) :: Worker.on_callback
+  def publish(server, exchange, routing_key, message, options \\ []) do
+    GenServer.call(server, {:publish, exchange, routing_key, message, options})
   end
 
   def handle_call({:publish, exchange, routing_key, message, options}, _from, %{channels: channels} = state) do
@@ -199,10 +200,10 @@ defmodule Lapin.Connection do
     {:noreply, state}
   end
 
-  def handle_info({:DOWN, _, :process, _pid, _reason}, %{conf: conf} = state) do
+  def handle_info({:DOWN, _, :process, _pid, _reason}, %{configuration: configuration} = state) do
     Logger.warn("Connection down, reconnecting in #{@connection_reconnect_delay} seconds...")
     :timer.sleep(@connection_reconnect_delay)
-    {:ok, channels} = connect(conf)
+    {:ok, channels} = connect(configuration)
     {:noreply, %{state | channel: channels}}
   end
 
@@ -330,18 +331,30 @@ defmodule Lapin.Connection do
          {_, configuration} <- Keyword.get_and_update(configuration, :port, fn port ->
            {port, map_port(port)}
          end),
-         configuration <- map_auth_mechanisms(configuration) do
-     {:ok, configuration}
-   else
-     {:error, :missing_params, missing_params} ->
-       missing_params = missing_params
-       |> Enum.map(&Atom.to_string(&1))
-       |> Enum.join(", ")
-       error = "Error creating connection #{inspect configuration}: missing mandatory params: #{missing_params}"
-       Logger.error(error)
-       {:error, error}
-   end
+         {_, configuration} = Keyword.get_and_update(configuration, :auth_mechanisms, fn mechanisms ->
+           case mechanisms do
+             list when is_list(list) ->
+               {mechanisms, Enum.map(list, &map_auth_mechanism(&1))}
+             _ ->
+               :pop
+          end
+        end) do
+      {:ok, configuration}
+    else
+      {:error, :missing_params, missing_params} ->
+        missing_params = missing_params
+        |> Enum.map(&Atom.to_string(&1))
+        |> Enum.join(", ")
+        error = "Error creating connection #{inspect configuration}: missing mandatory params: #{missing_params}"
+        Logger.error(error)
+        {:error, error}
+    end
   end
+
+  defp map_auth_mechanism(:amqplain), do: &:amqp_auth_mechanisms.amqplain/3
+  defp map_auth_mechanism(:external), do: &:amqp_auth_mechanisms.external/3
+  defp map_auth_mechanism(:plain), do: &:amqp_auth_mechanisms.plain/3
+  defp map_auth_mechanism(auth_mechanism), do: auth_mechanism
 
   defp map_host(nil), do: 'localhost'
   defp map_host(host) when is_binary(host), do: String.to_charlist(host)
@@ -350,30 +363,6 @@ defmodule Lapin.Connection do
   defp map_port(nil), do: 5672
   defp map_port(port) when is_binary(port), do: String.to_integer(port)
   defp map_port(port), do: port
-
-  defp map_auth_mechanisms(configuration) do
-    {_, configuration} = configuration
-    |> Keyword.get_and_update(:auth_mechanisms, fn mechanisms ->
-      case mechanisms do
-        list when is_list(mechanisms) ->
-          {mechanisms, Enum.map(mechanisms, fn mechanism ->
-            case mechanism do
-              :amqplain ->
-                &:amqp_auth_mechanisms.amqplain/3
-              :external ->
-                &:amqp_auth_mechanisms.external/3
-              :plain ->
-                &:amqp_auth_mechanisms.plain/3
-              mechanism ->
-                mechanism
-            end
-          end)}
-        _ ->
-          :pop
-     end
-   end)
-   configuration
- end
 
   defp check_mandatory_params(configuration, params) do
     if Enum.all?(params, &Keyword.has_key?(configuration, &1)) do
@@ -386,12 +375,10 @@ defmodule Lapin.Connection do
   end
 
   defp channel_is_consumer?(channel_config) do
-    role = Keyword.get(channel_config, :role, :no_role)
-    role === :consumer
+    Keyword.get(channel_config, :role, :no_role) === :consumer
   end
 
   defp channel_is_producer?(channel_config) do
-    role = Keyword.get(channel_config, :role, :no_role)
-    role === :producer
+    Keyword.get(channel_config, :role, :no_role) === :producer
   end
 end

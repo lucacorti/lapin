@@ -96,7 +96,7 @@ defmodule Lapin.Worker do
   @callback handle_return(channel_config :: Connection.channel_config, message :: Message.t) :: on_callback
 
   defmacro __using__(options) do
-    pattern = Keyword.get(options, :pattern, Lapin.Pattern)
+    pattern = Keyword.get(options, :pattern, Lapin.Pattern.Config)
     quote bind_quoted: [pattern: pattern] do
       @behaviour Lapin.Worker
       alias Lapin.Message
