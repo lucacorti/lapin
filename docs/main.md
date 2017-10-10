@@ -13,7 +13,7 @@ well with other broker implementations conforming to the AMQP 0.9.1 specificatio
 
 Just add **Lapin** as a dependency to your `mix.exs`:
 
-```
+```elixir
 defp deps() do
   [{:lapin, ">= 0.0.0"}]
 end
@@ -24,7 +24,7 @@ end
 If you are impatient to try **Lapin** out, just tweak this basic configuration
 example:
 
-```
+```elixir
 config :lapin, :connections, [
   [
     handle: :myhandle
@@ -48,7 +48,7 @@ config :lapin, :connections, [
 
 and define your worker module as follows:
 
-```
+```elixir
 defmodule MyApp.SomeWorker do
   use Lapin.Worker, patter: Lapin.Pattern.WorkQueue
 end
@@ -57,7 +57,7 @@ end
 To test your setup make sure *RabbitMQ* is running and configured correctly, then
 run your application with `iex -S mix` and publish a message:
 
-```
+```elixir
 ...
 iex(1)> Lapin.publish(:myhandle, "some_exchange", "some_queue", %Lapin.Message{payload: "test"})
 [debug] Published to 'test'->'test': %Lapin.Message{meta: nil, payload: "test"}
@@ -101,7 +101,7 @@ This is quick and easy way to start.
 
 `lib/myapp/some_worker.ex`:
 
-```
+```elixir
 defmodule MyApp.SomeWorker do
   use Lapin.Worker
 end
@@ -109,7 +109,7 @@ end
 
 `config/config.exs`:
 
-```
+```elixir
 config :lapin, :connections, [
   [
     handle: :myhandle,
@@ -150,19 +150,19 @@ In fact `Lapin` bundles a few `Lapin.Pattern` modules implementing the
 
 `lib/myapp/some_pattern.ex`:
 
-```
+```elixir
 defmodule MyApp.SomePattern do
   use Lapin.Pattern
 
-  def exchange_type(_channel_config): :fanout,
-  def queue_durable(_channel_config): false  
+  def exchange_type(_channel_config), do: :fanout,
+  def queue_durable(_channel_config), do: false  
   def publisher_persistent(_channel_config), do: true
 end
 ```
 
 `lib/myapp/some_worker.ex`:
 
-```
+```elixir
 defmodule MyApp.SomeWorker do
   use Lapin.Worker, pattern: MyApp.SomePattern
 end
@@ -170,7 +170,7 @@ end
 
 `config/config.exs`:
 
-```
+```elixir
 config :lapin, :connections, [
   [
     channels: [
@@ -209,7 +209,7 @@ message published on their queues.
 You can handle received messages by overriding the `Lapin.Worker.handle_deliver/2`
 callback. The default implementation does nothing.
 
-```
+```elixir
 defmodule MyApp.SomeWorker do
   use Lapin.Worker, pattern: MyApp.SomePattern
 
@@ -232,7 +232,7 @@ with `Lapin.Connection.start_link/1`.
 
 `config/config.exs`:
 
-```
+```elixir
 config :lapin, :connections, [
   [
     handle: :myhandle,
@@ -250,13 +250,13 @@ config :lapin, :connections, [
 
 Via `Lapin`:
 
-```
+```elixir
 :ok = Lapin.publish(:myhandle, "some_exchange", "routing_key", %Lapin.Message{}, [])  
 ```
 
 or via `Lapin.Connection` directly if you are not starting the `:lapin` `Application`:
 
-```
+```elixir
 connection_config = :lapin
 |> Application.get(:connections, [])
 |> Enum.at(0)
