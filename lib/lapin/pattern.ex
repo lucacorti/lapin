@@ -4,31 +4,99 @@ defmodule Lapin.Pattern do
 
   Lapin provides a number of submodules which impelment the patterns found in
   the [RabbitMQ Tutorials](http://www.rabbitmq.com/getstarted.html).
+
+  ```
+  defmodule MyApp.SomePatter do
+    use Lapin.Pattern
+
+    [... callbacks implementation ...]
+  end
+  ```
   """
 
-  alias Lapin.Worker
+  alias Lapin.Connection
 
+  @typedoc """
+  Consumer Tag
+  """
   @type consumer_tag :: String.t
+
+  @typedoc """
+  Exchange name
+  """
   @type exchange :: String.t
+
+  @typedoc """
+  Queue name
+  """
   @type queue :: String.t
+
+
+  @typedoc """
+  Queue Arguments
+  """
   @type queue_arguments :: [{String.t, atom, String.t}]
-  @type prefetch :: Integer.t | nil
+
+
+  @typedoc """
+  Consumer Prefetch
+  """
+  @type consumer_prefetch :: Integer.t | nil
+
+  @typedoc """
+  Routing key
+  """
   @type routing_key :: String
 
-  @callback consumer_ack(Worker.channel_config) :: boolean
-  @callback consumer_prefetch(Worker.channel_config) :: prefetch
+  @doc """
+  Consumer acknowledgements enabled
+  """
+  @callback consumer_ack(channel_config :: Connection.channel_config) :: boolean
 
-  @callback exchange_type(Worker.channel_config) :: boolean
-  @callback exchange_durable(Worker.channel_config) :: boolean
+  @doc """
+  Consumer message prefetch count
+  """
+  @callback consumer_prefetch(channel_config :: Connection.channel_config) :: consumer_prefetch
 
-  @callback publisher_confirm(Worker.channel_config) :: boolean
-  @callback publisher_persistent(Worker.channel_config) :: boolean
-  @callback publisher_mandatory(Worker.channel_config) :: boolean
+  @doc """
+  Declare exchange type
+  """
+  @callback exchange_type(channel_config :: Connection.channel_config) :: boolean
 
-  @callback queue_arguments(Worker.channel_config) :: queue_arguments
-  @callback queue_durable(Worker.channel_config) :: boolean
+  @doc """
+  Declare exchange durable
+  """
+  @callback exchange_durable(channel_config :: Connection.channel_config) :: boolean
 
-  @callback routing_key(Worker.channel_config) :: routing_key
+  @doc """
+  Request publisher confirms (RabbitMQ only)
+  """
+  @callback publisher_confirm(channel_config :: Connection.channel_config) :: boolean
+
+  @doc """
+  Request message persistence when publishing
+  """
+  @callback publisher_persistent(channel_config :: Connection.channel_config) :: boolean
+
+  @doc """
+  Request message mandatory routing when publishing
+  """
+  @callback publisher_mandatory(channel_config :: Connection.channel_config) :: boolean
+
+  @doc """
+  Declare queue arguments
+  """
+  @callback queue_arguments(channel_config :: Connection.channel_config) :: queue_arguments
+
+  @doc """
+  Declare queue durable
+  """
+  @callback queue_durable(channel_config :: Connection.channel_config) :: boolean
+
+  @doc """
+  Bind queue to routing_key
+  """
+  @callback routing_key(channel_config :: Connection.channel_config) :: routing_key
 
   defmacro __using__([]) do
     quote do

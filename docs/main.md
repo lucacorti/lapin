@@ -2,17 +2,16 @@
 
 ## Description ###
 
-`Lapin` is a *RabbitMQ* client for *Elixir* which abstracts away a lot of the
-complexity of interacting with an *AMQP* broker.
+**Lapin** is a *RabbitMQ* client for *Elixir* which abstracts away a lot of the
+complexities of interacting with an *AMQP* broker.
 
-While some advanced features are tied to *RabbitMQ* implementation specific
-extensions like [publisher confirms](http://www.rabbitmq.com/confirms.html), it
-should play well with other implementations conforming to the AMQP 0.9.1
-specification.
+While some advanced features, like [publisher confirms](http://www.rabbitmq.com/confirms.html),
+are tied to *RabbitMQ* implementation specific extensions, **Lapin** should play
+well with other broker implementations conforming to the AMQP 0.9.1 specification.
 
 ## Installation ##
 
-Just add `Lapin` as a dependency to your `mix.exs`:
+Just add **Lapin** as a dependency to your `mix.exs`:
 
 ```
 defp deps() do
@@ -22,7 +21,7 @@ end
 
 ## Quick Start ##
 
-If you are impatient to try `Lapin` out, just tweak this basic configuration
+If you are impatient to try **Lapin** out, just tweak this basic configuration
 example:
 
 ```
@@ -78,12 +77,12 @@ which can implement a few callbacks to publish/consume messages and handle other
 type of events from the broker. Each connection can have one or more
 channels, each one either consuming *OR* publishing messages.
 
-The default worker implementation simply logs events in development
-mode.
+The default worker implementation simply logs events at log level `:debug`.
 
-For details on implementing a custom worker check out the `Lapin.Worker`
-behaviour. You can specify a custom worker for any connection by putting implements
-module name under the `worker` key in the connection configuration.
+You need to specify a worker module for all channels. To specify a custom module,
+implement a custom `Lapin.Worker` module and adding it under the `worker` key in
+your channel configuration. For details on implementing a custom worker module
+check out the `Lapin.Worker` behaviour documentation.
 
 At a minimum, you need to configure *virtual_host* for each connection and
 *role*, *worker*, *exchange* and *queue* for each channel.

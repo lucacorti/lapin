@@ -2,12 +2,13 @@ defmodule Lapin.Worker do
   @moduledoc """
   Lapin Worker behaviour
 
-  Worker behaviour
+  Implementing a custome Lapin Worker behaviour:
+
   ```
   defmodule MyApp.MyWorker do
     use Lapin.Worker
 
-    ...
+    [... callbacks implementation ...]
   end
   ```
 
@@ -16,13 +17,15 @@ defmodule Lapin.Worker do
   ```
   defmodule MyApp.MyWorker do
     use Lapin.Worker, pattern: MyApp.MyPattern
+
+    [... callbacks implementation ...]
   end
   ```
 
   Check out the `Lapin.Pattern` submodules for a number of implementantions of
   common interaction patterns.
   """
-  alias Lapin.Message
+  alias Lapin.{Message, Connection}
 
   @typedoc """
   Module conforming to `Lapin.Pattern`
@@ -57,40 +60,40 @@ defmodule Lapin.Worker do
   @doc """
   Called when receiving a `basic.cancel` from the broker.
   """
-  @callback handle_cancel(Lapin.channel_config) :: on_callback
+  @callback handle_cancel(channel_config :: Connection.channel_config) :: on_callback
 
   @doc """
   Called when receiving a `basic.cancel_ok` from the broker.
   """
-  @callback handle_cancel_ok(Lapin.channel_config) :: on_callback
+  @callback handle_cancel_ok(channel_config :: Connection.channel_config) :: on_callback
 
   @doc """
   Called when receiving a `basic.deliver` from the broker.
 
   Message consumption is successfully completed when this callback returns `:ok`
   """
-  @callback handle_deliver(Lapin.channel_config, message :: Message.t) :: on_callback
+  @callback handle_deliver(channel_config :: Connection.channel_config, message :: Message.t) :: on_callback
 
   @doc """
   Called when receiving a `basic.consume_ok` from the broker.
 
   This signals successul registration as a consumer.
   """
-  @callback handle_consume_ok(Lapin.channel_config) :: on_callback
+  @callback handle_consume_ok(channel_config :: Connection.channel_config) :: on_callback
 
   @doc """
   Called when completing a `basic.publish` with the broker.
 
   Message transmission to the broker is successful when this callback is called.
   """
-  @callback handle_publish(Lapin.channel_config, message :: Message.t) :: on_callback
+  @callback handle_publish(channel_config :: Connection.channel_config, message :: Message.t) :: on_callback
 
   @doc """
   Called when receiving a `basic.return` from the broker.
 
   THis signals an undeliverable returned message from the broker.
   """
-  @callback handle_return(Lapin.channel_config, message :: Message.t) :: on_callback
+  @callback handle_return(channel_config :: Connection.channel_config, message :: Message.t) :: on_callback
 
   defmacro __using__(options) do
     pattern = Keyword.get(options, :pattern, Lapin.Pattern)
