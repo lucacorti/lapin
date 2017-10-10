@@ -16,7 +16,7 @@ defmodule Lapin.Supervisor do
     |> Enum.map(fn connection ->
       with handle when not is_nil(handle) <- Keyword.get(connection, :handle),
            via <- Connection.Registry.via(handle) do
-        worker(Connection, [connection], via: via)
+        worker(Connection, [connection, [name: via]])
       else
         nil ->
           Logger.error( fn -> "Missing :handle key for connection: #{inspect connection}" end)
