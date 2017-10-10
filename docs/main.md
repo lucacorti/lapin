@@ -179,13 +179,13 @@ config :lapin, :connections, [
         worker: MyApp.SomeWorker,
         role: :consumer,
         exchange: "some_exchange",
-        queue: "some_queue",
+        queue: "some_queue"
       ],
       [
         worker: MyApp.SomeWorker,
         role: :producer,
         exchange: "some_exchange",
-        queue: "some_queue",
+        queue: "some_queue"
       ]
     ]
   ]
