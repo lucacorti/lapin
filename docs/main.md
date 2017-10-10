@@ -257,9 +257,10 @@ Via `Lapin`:
 or via `Lapin.Connection` directly if you are not starting the `:lapin` `Application`:
 
 ```elixir
-connection_config = :lapin
+{:ok, connection} = :lapin
 |> Application.get(:connections, [])
 |> Enum.at(0)
-{:ok, connection} = Lapin.start_link(connection_config)
+|> Lapin.start_link
+
 :ok = Lapin.Connection.publish(connection, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```
