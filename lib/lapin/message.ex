@@ -1,6 +1,6 @@
 defmodule Lapin.Message do
   @moduledoc """
-  Lapin Message Structure
+  Lapin Message struct
   """
 
   @typedoc """

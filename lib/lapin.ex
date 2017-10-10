@@ -2,7 +2,7 @@ defmodule Lapin do
   @moduledoc """
   Lapin, an Elixir RabbitMQ client
 
-  Comprehensive documentation is [available](main.html).
+  Comprehensive documentation is available [here](main.html).
   """
 
   @typedoc """
