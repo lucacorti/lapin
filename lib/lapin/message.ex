@@ -16,7 +16,7 @@ defmodule Lapin.Message do
   @typedoc """
   Lapin Message container
   """
-  @type t :: %__MODULE__{meta: Message.meta, payload: Message.binary}
+  @type t :: %__MODULE__{meta: meta, payload: payload}
 
   defstruct [meta: nil, payload: nil]
 end
