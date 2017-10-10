@@ -19,9 +19,9 @@ defmodule Lapin.Supervisor do
         worker(Connection, [connection, [name: via]])
       else
         nil ->
-          Logger.error( fn -> "Missing :handle key for connection: #{inspect connection}" end)
+          Logger.error(fn -> "Missing :handle key for connection: #{inspect connection}" end)
         error ->
-          Logger.error( fn -> error end)
+          Logger.error(fn -> error end)
       end
     end)
     |> Enum.into([supervisor(Registry, [:unique, Connection.Registry])])
