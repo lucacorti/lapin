@@ -17,9 +17,9 @@ defmodule Lapin do
   Publish a message to the connection with the specified handle
   """
   @spec publish(handle :: Connection.Registry.handle, exchange :: Connection.exchange,
-  routing_key :: Connection.routing_key, options :: Keyword.t) :: Worker.on_callback
-  def publish(handle, exchange, routing_key, options \\ []) do
+  routing_key :: Connection.routing_key, message :: Lapin.Message.t, options :: Keyword.t) :: Worker.on_callback
+  def publish(handle, exchange, routing_key, message, options \\ []) do
     via = Connection.Registry.via(handle)
-    Lapin.Connection.publish(via, exchange, routing_key, options)
+    Lapin.Connection.publish(via, exchange, routing_key, message, options)
   end
 end
