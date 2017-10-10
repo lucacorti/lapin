@@ -3,6 +3,8 @@ defmodule Lapin.Supervisor do
   Lapin Supervisor
   """
   use Supervisor
+  require Logger
+
   alias Lapin.Connection
 
   def start_link(configuration) do
@@ -17,9 +19,9 @@ defmodule Lapin.Supervisor do
         worker(Connection, [connection], via: via)
       else
         nil ->
-          {:error, "Missing :handle key for connection: #{inspect connection}"}
+          Logger.error( fn -> "Missing :handle key for connection: #{inspect connection}" end)
         error ->
-          error
+          Logger.error( fn -> error end)
       end
     end)
     |> Enum.into([supervisor(Registry, [:unique, Connection.Registry])])
