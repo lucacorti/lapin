@@ -229,9 +229,9 @@ defmodule Lapin.Connection do
     end
 
     rescue
-      _exception ->
+      exception ->
         Basic.reject(channel, meta.delivery_tag, requeue: not meta.redelivered)
-        Logger.error("Crash processing message #{meta.delivery_tag}, rejected")
+        Logger.error("Crash processing message #{meta.delivery_tag}, rejected: #{inspect exception}")
   end
 
   defp connect(configuration) do
