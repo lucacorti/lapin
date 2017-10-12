@@ -223,15 +223,21 @@ defmodule Lapin.Connection do
          Logger.debug(fn -> "Message #{meta.delivery_tag} consumed_successfully, without ACK" end)
        end
      else
-       error ->
-         Basic.reject(channel, meta.delivery_tag, requeue: false)
-         Logger.debug(fn -> "Message #{meta.delivery_tag} NOT consumed: #{inspect error}" end)
+      {:reject, reason} ->
+        Basic.reject(channel, meta.delivery_tag, requeue: false)
+        Logger.debug("Message #{meta.delivery_tag} REJECTED, NOT REQUEUED: #{inspect reason}")
+      {:requeue, reason} ->
+        Basic.reject(channel, meta.delivery_tag, requeue: true)
+        Logger.debug("Message #{meta.delivery_tag} NOT CONSUMED, REQUEUED: #{inspect reason}")
+      error ->
+        Basic.reject(channel, meta.delivery_tag, requeue: false)
+        Logger.debug("Message #{meta.delivery_tag} INVALID RETURN VALUE, NOT REQUEUED: #{inspect error}")
     end
 
     rescue
       exception ->
-        Basic.reject(channel, meta.delivery_tag, requeue: not meta.redelivered)
-        Logger.error("Crash processing message #{meta.delivery_tag}, rejected: #{inspect exception}")
+        Basic.reject(channel, meta.delivery_tag, requeue: false)
+        Logger.error("Message #{meta.delivery_tag} CONSUMER CRASHED, NOT REQUEUED: #{inspect exception}")
   end
 
   defp connect(configuration) do

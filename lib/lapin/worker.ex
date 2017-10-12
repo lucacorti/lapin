@@ -48,9 +48,19 @@ defmodule Lapin.Worker do
   @type role :: :consumer | :producer
 
   @typedoc """
-  Worker module callback result
+  Worker module generic callback result
   """
   @type on_callback :: :ok | {:error, message :: String.t}
+
+  @typedoc """
+  Reason for message rejection
+  """
+  @type reason :: term
+
+  @typedoc """
+  Worker module handle_deliver callback result
+  """
+  @type on_deliver :: :ok | {:reject, reason} | {:requeue, reason} | term
 
   @doc """
   Returns the pattern for the worker module, defaults to `Lapin.Pattern`
@@ -70,7 +80,13 @@ defmodule Lapin.Worker do
   @doc """
   Called when receiving a `basic.deliver` from the broker.
 
-  Message consumption is successfully completed when this callback returns `:ok`
+  Return values from this callback determine message acknowloedgement:
+    - `:ok`: Message was processed by the consumer and will be removed from queue
+    - `{:requeue, reason}`: Message was not processed and will be requeued
+    - `{:reject, reason}`: Message was not processed but will NOT be requeued
+
+  Any other return value including a crash in the callback code has the same
+  effect as {:reject, reason}, it rejects the message WITHOUT requeueing.
   """
   @callback handle_deliver(channel_config :: Connection.channel_config, message :: Message.t) :: on_callback
 
