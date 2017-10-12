@@ -381,10 +381,10 @@ defmodule Lapin.Connection do
   end
 
   defp channel_is_consumer?(channel_config) do
-    Keyword.get(channel_config, :role, :no_role) === :consumer
+    Keyword.get(channel_config, :role) === :consumer
   end
 
   defp channel_is_producer?(channel_config) do
-    Keyword.get(channel_config, :role, :no_role) === :producer
+    Keyword.get(channel_config, :role) === :producer
   end
 end
