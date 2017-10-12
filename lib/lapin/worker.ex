@@ -81,14 +81,16 @@ defmodule Lapin.Worker do
   Called when receiving a `basic.deliver` from the broker.
 
   Return values from this callback determine message acknowledgement:
-    - `:ok`: Message was processed by the consumer and will be removed from queue
-    - `{:requeue, reason}`: Message was not processed and will be requeued
-    - `{:reject, reason}`: Message was not processed but will NOT be requeued
+    - `:ok`: Message was processed by the consumer and should be removed from queue
+    - `{:requeue, reason}`: Message was not processed and should be requeued
+    - `{:reject, reason}`: Message was not processed but should NOT be requeued
 
-  Any other return value including a crash in the callback code has the same
-  effect as {:reject, reason}, it rejects the message WITHOUT requeueing.
+  Any other return value, including a crash in the callback code, has the same
+  effect as `{:reject, reason}`: it rejects the message WITHOUT requeueing. The
+  `reason` term can be used by the application to signal the reason of rejection
+   and is logged in debug.
   """
-  @callback handle_deliver(channel_config :: Connection.channel_config, message :: Message.t) :: on_callback
+  @callback handle_deliver(channel_config :: Connection.channel_config, message :: Message.t) :: on_deliver
 
   @doc """
   Called when receiving a `basic.consume_ok` from the broker.
