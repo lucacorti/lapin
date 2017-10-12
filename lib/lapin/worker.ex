@@ -80,7 +80,7 @@ defmodule Lapin.Worker do
   @doc """
   Called when receiving a `basic.deliver` from the broker.
 
-  Return values from this callback determine message acknowloedgement:
+  Return values from this callback determine message acknowledgement:
     - `:ok`: Message was processed by the consumer and will be removed from queue
     - `{:requeue, reason}`: Message was not processed and will be requeued
     - `{:reject, reason}`: Message was not processed but will NOT be requeued
