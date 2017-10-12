@@ -104,8 +104,8 @@ defmodule Lapin.Pattern do
 
       @consumer_ack false
       @consumer_prefetch nil
-      @exchange_type :direct
       @exchange_durable true
+      @exchange_type :direct
       @publisher_confirm false
       @publisher_mandatory false
       @publisher_persistent false
@@ -115,8 +115,8 @@ defmodule Lapin.Pattern do
 
       def consumer_ack(channel_config), do: Keyword.get(channel_config, :consumer_ack, @consumer_ack)
       def consumer_prefetch(channel_config), do: Keyword.get(channel_config, :consumer_prefetch, @consumer_prefetch)
-      def exchange_type(channel_config), do: Keyword.get(channel_config, :exchange_type, @exchange_type)
       def exchange_durable(channel_config), do: Keyword.get(channel_config, :exchange_durable, @exchange_durable)
+      def exchange_type(channel_config), do: Keyword.get(channel_config, :exchange_type, @exchange_type)
       def publisher_confirm(channel_config), do: Keyword.get(channel_config, :publisher_confirm, @publisher_confirm)
       def publisher_mandatory(channel_config), do: Keyword.get(channel_config, :publisher_mandatory, @publisher_mandatory)
       def publisher_persistent(channel_config), do: Keyword.get(channel_config, :publisher_persistent, @publisher_persistent)
