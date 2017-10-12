@@ -178,9 +178,9 @@ defmodule Lapin.Connection do
   def handle_info({:basic_deliver, payload, meta}, %{channels: channels} = state) do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, meta.consumer_tag),
          channel when not is_nil(channel) <- Keyword.get(channel_config, :channel) do
-      spawn fn ->
+      spawn(fn ->
         consume(channel_config, channel, meta, payload)
-      end
+      end)
     else
       nil ->
         Logger.error("Error processing message #{meta.delivery_tag}, unknown channel")
@@ -223,9 +223,9 @@ defmodule Lapin.Connection do
          Logger.debug(fn -> "Message #{meta.delivery_tag} consumed_successfully, without ACK" end)
        end
      else
-      error ->
-        Basic.reject(channel, meta.delivery_tag, requeue: false)
-        Logger.debug(fn -> "Message #{meta.delivery_tag} NOT consumed: #{inspect error}" end)
+       error ->
+         Basic.reject(channel, meta.delivery_tag, requeue: false)
+         Logger.debug(fn -> "Message #{meta.delivery_tag} NOT consumed: #{inspect error}" end)
     end
 
     rescue
@@ -312,8 +312,8 @@ defmodule Lapin.Connection do
   end
 
   defp get_channel_config(channels, consumer_tag) do
-    Enum.find(channels, fn conf ->
-      consumer_tag == Keyword.get(conf, :consumer_tag)
+    Enum.find(channels, fn channel_config ->
+      consumer_tag == Keyword.get(channel_config, :consumer_tag)
     end)
   end
 
