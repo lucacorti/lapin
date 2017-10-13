@@ -204,7 +204,7 @@ defmodule Lapin.Connection do
     Logger.warn("Connection down, reconnecting in #{@connection_reconnect_delay} seconds...")
     :timer.sleep(@connection_reconnect_delay)
     {:ok, channels} = connect(configuration)
-    {:noreply, %{state | channel: channels}}
+    {:noreply, %{state | channels: channels}}
   end
 
   def handle_info(msg, state) do
