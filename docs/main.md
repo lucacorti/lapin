@@ -220,8 +220,10 @@ defmodule MyApp.SomeWorker do
 end
 ```
 
-Messages are considered to be successfully consumed if
-`Lapin.Worker.handle_deliver/2` returns `:ok`.
+Messages are considered to be successfully consumed if the
+`Lapin.Worker.handle_deliver/2` callback returns `:ok`. See the callback
+documentation for a complete list of possible values you can return to signal
+message acknowledgement and rejection with the broker.
 
 ### Publishing messages ###
 
