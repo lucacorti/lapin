@@ -203,7 +203,7 @@ defmodule Lapin.Connection do
   def handle_info({:DOWN, _, :process, _pid, _reason}, state) do
     Logger.warn("Connection down, reconnecting in #{@connection_reconnect_delay} seconds...")
     :timer.sleep(@connection_reconnect_delay)
-    {:stop, :normal, %{state | channels: []}}
+    {:stop, :normal, state}
   end
 
   def handle_info(msg, state) do
