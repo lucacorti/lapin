@@ -200,11 +200,10 @@ defmodule Lapin.Connection do
     {:noreply, state}
   end
 
-  def handle_info({:DOWN, _, :process, _pid, _reason}, %{configuration: configuration} = state) do
+  def handle_info({:DOWN, _, :process, _pid, _reason}, state) do
     Logger.warn("Connection down, reconnecting in #{@connection_reconnect_delay} seconds...")
     :timer.sleep(@connection_reconnect_delay)
-    {:ok, channels} = connect(configuration)
-    {:noreply, %{state | channels: channels}}
+    {:stop, :normal, %{state | channels: []}}
   end
 
   def handle_info(msg, state) do
