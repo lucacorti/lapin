@@ -204,10 +204,10 @@ file and tries to provide sensible defaults for unspecified settings.
 
 Once you have completed your configuration, connections will be automatically
 established and the worker modules with `:consumer` role will start receiving
-message published on their queues.
+messages published on the queues they are consuming.
 
 You can handle received messages by overriding the `Lapin.Worker.handle_deliver/2`
-callback. The default implementation does nothing.
+callback. The default implementation simply returns `:ok`.
 
 ```elixir
 defmodule MyApp.SomeWorker do
@@ -223,11 +223,11 @@ end
 Messages are considered to be successfully consumed if the
 `Lapin.Worker.handle_deliver/2` callback returns `:ok`. See the callback
 documentation for a complete list of possible values you can return to signal
-message acknowledgement and rejection with the broker.
+message acknowledgement and rejection to the broker.
 
 ### Publishing messages ###
 
-To publish messages with workers with `:producer` role, you can use the
+To publish messages using workers with `:producer` role, you can use the
 `Lapin.publish/5` function passing the connection handle for your connection,
 or directly call `Lapin.Connection.publish/5` if you manually started a connection
 with `Lapin.Connection.start_link/1`.
@@ -259,10 +259,17 @@ Via `Lapin`:
 or via `Lapin.Connection` directly if you are not starting the `:lapin` `Application`:
 
 ```elixir
-{:ok, connection} = :lapin
-|> Application.get(:connections, [])
-|> Enum.at(0)
-|> Lapin.start_link
+{:ok, connection} = Lapin.Connection.start_link([
+  handle: :myhandle,
+  channels: [
+    [
+      role: :producer,
+      worker: MyApp.SomeWorker,
+      exchange: "some_exchange",
+      queue: "some_queue"
+    ]
+  ]
+])
 
 :ok = Lapin.Connection.publish(connection, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```
