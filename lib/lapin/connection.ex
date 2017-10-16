@@ -28,7 +28,6 @@ defmodule Lapin.Connection do
   """
   @type routing_key :: String.t
 
-
   @typedoc """
   Channel role
   """
@@ -224,13 +223,13 @@ defmodule Lapin.Connection do
      else
       {:reject, reason} ->
         Basic.reject(channel, meta.delivery_tag, requeue: false)
-        Logger.debug("Message #{meta.delivery_tag} REJECTED, NOT REQUEUED: #{inspect reason}")
+        Logger.debug(fn -> "Message #{meta.delivery_tag} REJECTED, NOT REQUEUED: #{inspect reason}" end)
       {:requeue, reason} ->
         Basic.reject(channel, meta.delivery_tag, requeue: true)
-        Logger.debug("Message #{meta.delivery_tag} NOT CONSUMED, REQUEUED: #{inspect reason}")
+        Logger.debug(fn -> "Message #{meta.delivery_tag} NOT CONSUMED, REQUEUED: #{inspect reason}" end)
       error ->
         Basic.reject(channel, meta.delivery_tag, requeue: false)
-        Logger.debug("Message #{meta.delivery_tag} INVALID RETURN VALUE, NOT REQUEUED: #{inspect error}")
+        Logger.debug(fn -> "Message #{meta.delivery_tag} INVALID RETURN VALUE, NOT REQUEUED: #{inspect error}" end)
     end
 
     rescue

@@ -120,7 +120,7 @@ defmodule Lapin.Worker do
       alias Lapin.Message
 
       @pattern pattern
-      def pattern(), do: @pattern
+      def pattern, do: @pattern
 
       def handle_cancel(_channel_config), do: :ok
       def handle_cancel_ok(_channel_config), do: :ok

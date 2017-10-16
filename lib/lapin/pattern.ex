@@ -31,12 +31,10 @@ defmodule Lapin.Pattern do
   """
   @type queue :: String.t
 
-
   @typedoc """
   Queue Arguments
   """
   @type queue_arguments :: [{String.t, atom, String.t}]
-
 
   @typedoc """
   Consumer Prefetch
