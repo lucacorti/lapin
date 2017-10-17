@@ -1,5 +1,9 @@
 ExUnit.start()
 
-defmodule LapinTest.TestWorker do
-  use Lapin.Worker
+defmodule LapinTest.HelloWorldWorker do
+  use Lapin.Worker, pattern: Lapin.Pattern.HelloWorld
+end
+
+defmodule LapinTest.WorkQueueWorker do
+  use Lapin.Worker, pattern: Lapin.Pattern.WorkQueue
 end
