@@ -126,28 +126,28 @@ defmodule Lapin.Connection do
          options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
          :ok <- Basic.publish(channel, exchange, routing_key, message.payload, options) do
       if not pattern.publisher_confirm(channel_config) or Confirm.wait_for_confirms(channel) do
-          Logger.debug(fn -> "Published to '#{exchange}'->'#{routing_key}': #{inspect message}" end)
+          Logger.debug fn -> "Published to '#{exchange}'->'#{routing_key}': #{inspect message}" end
           {:reply, worker.handle_publish(channel_config, message), state}
         else
           error = "Error publishing #{inspect message} to #{exchange}: broker did not confirm reception"
-          Logger.debug(fn -> error end)
+          Logger.debug fn -> error end
           {:reply, {:error, error}, state}
         end
     else
       :passive ->
         error = "Cannot publish, channel role is :passive"
-        Logger.error(error)
+        Logger.error error
         {:reply, {:error, error}, state}
       :consumer ->
         error = "Cannot publish, channel role is :consumer"
-        Logger.error(error)
+        Logger.error error
         {:reply, {:error, error}, state}
       nil ->
         error = "Error publishing message: no channel for '#{exchange}'->'#{routing_key}'"
-        Logger.debug(fn -> error end)
+        Logger.debug fn -> error end
         {:reply, {:error, error}, state}
       {:error, error} ->
-        Logger.debug(fn -> "Error sending message: #{inspect error}" end)
+        Logger.debug fn -> "Error sending message: #{inspect error}" end
         {:reply, {:error, error}, state}
     end
   end
@@ -156,12 +156,12 @@ defmodule Lapin.Connection do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
          worker <- Keyword.get(channel_config, :worker),
          :ok <- worker.handle_cancel(channel_config) do
-        Logger.debug(fn -> "Broker cancelled consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end)
+        Logger.debug fn -> "Broker cancelled consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end
     else
       nil ->
-        Logger.warn("Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown channel")
+        Logger.warn "Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown channel"
       {:error, error} ->
-        Logger.error("Error canceling consumer_tag '#{consumer_tag}': #{error}")
+        Logger.error "Error canceling consumer_tag '#{consumer_tag}': #{error}"
     end
     {:stop, :normal, state}
   end
@@ -170,12 +170,12 @@ defmodule Lapin.Connection do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
          worker <- Keyword.get(channel_config, :worker),
          :ok <- worker.handle_cancel_ok(channel_config) do
-      Logger.debug(fn -> "Broker confirmed cancel consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end)
+      Logger.debug fn -> "Broker confirmed cancel consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end
     else
       nil ->
-        Logger.debug(fn -> "Broker confirmed cancel for consumer_tag '#{consumer_tag}' for locally unknown channel" end)
+        Logger.debug fn -> "Broker confirmed cancel for consumer_tag '#{consumer_tag}' for locally unknown channel" end
       {:error, error} ->
-        Logger.error("Error confirming cancel for consumer_tag '#{consumer_tag}': #{error}")
+        Logger.error "Error confirming cancel for consumer_tag '#{consumer_tag}': #{error}"
     end
     {:noreply, state}
   end
@@ -184,12 +184,12 @@ defmodule Lapin.Connection do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
          worker <- Keyword.get(channel_config, :worker),
          :ok <- worker.handle_consume_ok(channel_config) do
-        Logger.debug(fn -> "Broker registered consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end)
+        Logger.debug fn -> "Broker registered consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end
     else
       nil ->
-        Logger.warn("Broker registered consumer_tag '#{consumer_tag}', unknown channel")
+        Logger.warn "Broker registered consumer_tag '#{consumer_tag}', unknown channel"
       {:error, error} ->
-        Logger.error("Broker error registration callback: #{error}")
+        Logger.error "Broker error registration callback: #{error}"
     end
     {:noreply, state}
   end
@@ -203,7 +203,7 @@ defmodule Lapin.Connection do
       end)
     else
       nil ->
-        Logger.error("Error processing message #{meta.delivery_tag}, unknown channel")
+        Logger.error "Error processing message #{meta.delivery_tag}, unknown channel"
     end
     {:noreply, state}
   end
@@ -212,21 +212,21 @@ defmodule Lapin.Connection do
     with channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, routing_key),
          worker <- Keyword.get(channel_config, :worker),
          :ok <- worker.handle_return(channel_config, %Message{meta: meta, payload: payload}) do
-      Logger.debug(fn -> "Returned message for '#{exchange}'->'#{routing_key}': #{inspect meta}" end)
+      Logger.debug fn -> "Returned message for '#{exchange}'->'#{routing_key}': #{inspect meta}" end
     else
       error ->
-        Logger.debug(fn -> "Error handling returned message: #{inspect error}" end)
+        Logger.debug fn -> "Error handling returned message: #{inspect error}" end
     end
     {:noreply, state}
   end
 
   def handle_info({:DOWN, _, :process, _pid, _reason}, state) do
-    Logger.warn("Connection down, restarting...")
+    Logger.warn "Connection down, restarting..."
     {:stop, :normal, state}
   end
 
   def handle_info(msg, state) do
-     Logger.warn("MESSAGE: #{inspect msg}")
+     Logger.warn "MESSAGE: #{inspect msg}"
      {:noreply, state}
   end
 
@@ -235,7 +235,7 @@ defmodule Lapin.Connection do
   end
 
   defp consume(channel_config, channel, %Message{meta: %{delivery_tag: delivery_tag}} = message) do
-    Logger.debug(fn -> "Consuming message #{delivery_tag}" end)
+    Logger.debug fn -> "Consuming message #{delivery_tag}" end
     with worker <- Keyword.get(channel_config, :worker),
          pattern <- worker.pattern(),
          consumer_ack <- pattern.consumer_ack(channel_config),
@@ -244,33 +244,33 @@ defmodule Lapin.Connection do
      else
       {:reject, reason} ->
         Basic.reject(channel, delivery_tag, requeue: false)
-        Logger.debug(fn -> "Message #{delivery_tag} REJECTED, NOT REQUEUED: #{inspect reason}" end)
+        Logger.debug fn -> "Message #{delivery_tag} REJECTED, NOT REQUEUED: #{inspect reason}" end
       {:requeue, reason} ->
         Basic.reject(channel, delivery_tag, requeue: true)
-        Logger.debug(fn -> "Message #{delivery_tag} NOT CONSUMED, REQUEUED: #{inspect reason}" end)
+        Logger.debug fn -> "Message #{delivery_tag} NOT CONSUMED, REQUEUED: #{inspect reason}" end
       error ->
         Basic.reject(channel, delivery_tag, requeue: false)
-        Logger.debug(fn -> "Message #{delivery_tag} INVALID RETURN VALUE, NOT REQUEUED: #{inspect error}" end)
+        Logger.debug fn -> "Message #{delivery_tag} INVALID RETURN VALUE, NOT REQUEUED: #{inspect error}" end
     end
 
     rescue
       exception ->
         Basic.reject(channel, delivery_tag, requeue: false)
-        Logger.error("Message #{delivery_tag} CONSUMER CRASHED, NOT REQUEUED: #{inspect exception}")
+        Logger.error "Message #{delivery_tag} CONSUMER CRASHED, NOT REQUEUED: #{inspect exception}"
   end
 
   defp consume_ack(true = _consumer_ack, channel, delivery_tag) do
     if Basic.ack(channel, delivery_tag) do
-      Logger.debug(fn -> "Message #{delivery_tag} consumed successfully, with ACK" end)
+      Logger.debug fn -> "Message #{delivery_tag} consumed successfully, with ACK" end
       :ok
     else
-      Logger.debug(fn -> "Message #{delivery_tag} ACK failed" end)
+      Logger.debug fn -> "Message #{delivery_tag} ACK failed" end
       :error
     end
   end
 
   defp consume_ack(false = _consumer_ack, _channel, delivery_tag) do
-    Logger.debug(fn -> "Message #{delivery_tag} consumed successfully, without ACK" end)
+    Logger.debug fn -> "Message #{delivery_tag} consumed successfully, without ACK" end
     :ok
   end
 
@@ -312,10 +312,10 @@ defmodule Lapin.Connection do
         |> Enum.map(&Atom.to_string(&1))
         |> Enum.join(", ")
         error = "Error creating channel #{inspect channel_config}: missing mandatory params: #{missing_params}"
-        Logger.error(error)
+        Logger.error error
         {:error, error}
       {:error, error} ->
-        Logger.error("Error creating channel #{channel_config}: #{inspect error}")
+        Logger.error "Error creating channel #{channel_config}: #{inspect error}"
         {:error, error}
     end
   end
@@ -326,7 +326,7 @@ defmodule Lapin.Connection do
          :ok <- setup_consumer_prefetch(channel, consumer_prefetch),
          {:ok, consumer_tag} = Basic.consume(channel, queue, nil, no_ack: not consumer_ack),
          channel_config <- Keyword.put(channel_config, :consumer_tag, consumer_tag) do
-      Logger.debug(fn -> "#{consumer_tag}: consumer bound to queue '#{queue}'" end)
+      Logger.debug fn -> "#{consumer_tag}: consumer bound to queue '#{queue}'" end
       {:ok, channel_config}
     else
       error ->
@@ -399,7 +399,7 @@ defmodule Lapin.Connection do
         |> Enum.map(&Atom.to_string(&1))
         |> Enum.join(", ")
         error = "Error creating connection #{inspect configuration}: missing mandatory params: #{missing_params}"
-        Logger.error(error)
+        Logger.error error
         {:error, error}
     end
   end

@@ -214,7 +214,7 @@ defmodule MyApp.SomeWorker do
   use Lapin.Worker, pattern: MyApp.SomePattern
 
   def handle_deliver(channel_config, message) do
-    Logger.debug(fn -> "received #{inspect message} on channel #{inspect channel_config}" end)
+    Logger.debug fn -> "received #{inspect message} on channel #{inspect channel_config}" end
   end
 end
 ```
