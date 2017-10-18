@@ -79,19 +79,22 @@ channels, each one either consuming *OR* publishing messages.
 
 The default worker implementation simply logs events at log level `:debug`.
 
-You need to specify a worker module for all channels. To specify a custom module,
-implement a custom `Lapin.Worker` module and adding it under the `worker` key in
-your channel configuration. For details on implementing a custom worker module
-check out the `Lapin.Worker` behaviour documentation.
+You need to configure a worker module for all channels. To implement a worker
+module, define a module and use the `Lapin.Worker` behaviour, then add it under
+the `worker` key in your channel configuration.
+
+For details on implementing *Lapin* worker modules check out the `Lapin.Worker`
+behaviour documentation.
 
 At a minimum, you need to configure a *handle* for each connection and
 *role*, *worker*, *exchange* and *queue* for each channel.
+
 You can find a a complete list of connection configuration settings in the in
 `Lapin.Connection` *config* type specification.
 
 Advanced channel behaviour can be configured in two ways.
 
-### One-shot, static configuration ###
+### One-shot, static channel configuration ###
 
 If you are fine with a one shot configuration of your channels, you can specify
 any settings from the `Lapin.Connection` *channel_config* type specification
@@ -134,7 +137,7 @@ config :lapin, :connections, [
 ]
 ```
 
-### Reusable, static or dynamic configuration ###
+### Reusable, static or dynamic channel configuration ###
 
 If you need to configure a lot of channels in the same way, you can use a
 `Lapin.Pattern` to define channel settings. A pattern is simply a collection of
@@ -191,7 +194,7 @@ config :lapin, :connections, [
 ]
 ```
 
-Since a `Lapin.Pattern` is just a collection of overridable callback functions,
+Since `Lapin.Pattern` is just a behaviour of overridable callback functions,
 patterns also allow you to implement any kind of dynamic runtime configuration.
 
 Actually, the one-shot static configuration explained earlier is implemented by
@@ -255,7 +258,7 @@ Via `Lapin`:
 :ok = Lapin.publish(:myhandle, "some_exchange", "routing_key", %Lapin.Message{}, [])  
 ```
 
-or via `Lapin.Connection` directly if you are not starting the `:lapin` `Application`:
+Via `Lapin.Connection` if you are starting a `Lapin.Connection` directly:
 
 ```elixir
 {:ok, connection} = Lapin.Connection.start_link([
@@ -276,11 +279,12 @@ or via `Lapin.Connection` directly if you are not starting the `:lapin` `Applica
 ### Declaring broker configuration ###
 
 If you want to declare exchanges and queues without producing nor consuming
-messages, you can set channel role to `:passive` in your channels. This particular
-role does not allow publishing via `Lapin.publish/5` / `Lapin.Connection.publish/5`
-and does not register with the broker to consume the configured queue. It will
-just create a channel and declare exchanges, queues and queue bindings, reporting
-any discrepancies between the configuration and the broker state if they exist.
+messages, you can set channel role to `:passive` in your channels.
+
+This particular role does not allow publishing via messages and does not register
+with the broker to consume the configured queue. *Lapin* will just create the
+channel and declare exchanges, queues and queue bindings, reporting any
+discrepancies between the configuration and the broker state if there are any.
 
 ```elixir
 {:ok, connection} = Lapin.Connection.start_link([
