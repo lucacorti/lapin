@@ -35,6 +35,24 @@ defmodule LapinTest do
           ]
         ]
       ],
+      passive: [
+        handle: :test_passive,
+        virtual_host: "local",
+        channels: [
+          [
+            role: :passive,
+            worker: LapinTest.HelloWorldWorker,
+            exchange: exchange,
+            queue: queue
+          ],
+          [
+            role: :passive,
+            worker: LapinTest.HelloWorldWorker,
+            exchange: exchange,
+            queue: queue
+          ]
+        ]
+      ],
       message: %Message{payload: ""}
     }
   end
@@ -49,5 +67,11 @@ defmodule LapinTest do
     {:ok, consumer} = Connection.start_link(ctx.consumer)
     {:error, _} = Lapin.Connection.publish(consumer, ctx.exchange, "", ctx.message)
     :ok = Lapin.Connection.close(consumer)
+  end
+
+  test "hello_world_passive_cant_publish", ctx do
+    {:ok, passive} = Connection.start_link(ctx.passive)
+    {:error, _} = Lapin.Connection.publish(passive, ctx.exchange, "", ctx.message)
+    :ok = Lapin.Connection.close(passive)
   end
 end

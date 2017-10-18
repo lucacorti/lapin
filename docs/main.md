@@ -136,10 +136,10 @@ config :lapin, :connections, [
 
 ### Reusable, static or dynamic configuration ###
 
-If you need to configure a lot of channels in the same way, you can *use* the
+If you need to configure a lot of channels in the same way, you can use a
 `Lapin.Pattern` to define channel settings. A pattern is simply a collection of
 behaviour callbacks bundled in a module, which you can then reuse in any worker
-module when you need the same behaviour in any channel.
+module when you need the same kind of interaction pattern in a channel.
 
 To do this, you need to define your pattern module by *use* ing `Lapin.Pattern`
 and specify it in your worker module by passing the *pattern* key when *use* ing
@@ -195,8 +195,8 @@ Since a `Lapin.Pattern` is just a collection of overridable callback functions,
 patterns also allow you to implement any kind of dynamic runtime configuration.
 
 Actually, the one-shot static configuration explained earlier is implemented by
-the default `Lapin.Pattern` module implementation which reads the configuration
-file and tries to provide sensible defaults for unspecified settings.
+the default `Lapin.Pattern.Config` module implementation which tries to read
+settings from the configuration file and provides sensible defaults if needed.
 
 ## Usage ##
 
@@ -214,8 +214,7 @@ defmodule MyApp.SomeWorker do
   use Lapin.Worker, pattern: MyApp.SomePattern
 
   def handle_deliver(channel_config, message) do
-    Logger.debug(fn -> "received message: #{inspect message} on channel: #{inspect channel_config}")
-    :ok
+    Logger.debug(fn -> "received #{inspect message} on channel #{inspect channel_config}" end)
   end
 end
 ```
@@ -272,4 +271,29 @@ or via `Lapin.Connection` directly if you are not starting the `:lapin` `Applica
 ])
 
 :ok = Lapin.Connection.publish(connection, "some_exchange", "routing_key", %Lapin.Message{}, [])
+```
+
+### Declaring broker configuration ###
+
+If you want to declare exchanges and queues without producing nor consuming
+messages, you can set channel role to `:passive` in your channels. This particular
+role does not allow publishing via `Lapin.publish/5` / `Lapin.Connection.publish/5`
+and does not register with the broker to consume the configured queue. It will
+just create a channel and declare exchanges, queues and queue bindings, reporting
+any discrepancies between the configuration and the broker state if they exist.
+
+```elixir
+{:ok, connection} = Lapin.Connection.start_link([
+  handle: :myhandle,
+  channels: [
+    [
+      role: :passive,
+      worker: MyApp.SomeWorker,
+      exchange: "some_exchange",
+      queue: "some_queue"
+    ]
+  ]
+])
+
+{:error, message} = Lapin.Connection.publish(connection, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```

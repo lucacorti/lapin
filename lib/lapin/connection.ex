@@ -36,7 +36,7 @@ defmodule Lapin.Connection do
   @typedoc """
   Channel role
   """
-  @type role :: :consumer | :producer
+  @type role :: :consumer | :producer | :passive
 
   @typedoc """
   Connection configuration
@@ -57,10 +57,13 @@ defmodule Lapin.Connection do
   Channel configuration
 
   The following keys are supported:
-    - role: channel role (:consumer | :producer)
-    - worker: channel worker (module impelmenting the `Lapin.Worker` behaviour)
-    - exchange: broker exchange (string)
-    - queue: broker queue (string)
+    - role: channel role (`atom`), allowed values are:
+      - `:consumer`: Receives messages from the channel via the `worker` module
+      - `:producer`: Can publish messages to che channel
+      - `:passive`: Used to declare channel configuration, can't receive nor publish
+    - worker: channel worker (module conforming to the `Lapin.Worker` behaviour)
+    - exchange: broker exchange (`String.t`)
+    - queue: broker queue (`String.t`)
 
   If using the default `Lapin.Pattern` implementation, the following keys are also supported:
     - consumer_ack: send consumer ack (boolean), *default: false*
@@ -131,8 +134,12 @@ defmodule Lapin.Connection do
           {:reply, {:error, error}, state}
         end
     else
+      :passive ->
+        error = "Cannot publish, channel role is :passive"
+        Logger.error(error)
+        {:reply, {:error, error}, state}
       :consumer ->
-        error = "Cannot publish, channel role is not producer"
+        error = "Cannot publish, channel role is :consumer"
         Logger.error(error)
         {:reply, {:error, error}, state}
       nil ->
@@ -313,7 +320,7 @@ defmodule Lapin.Connection do
     end
   end
 
-  defp setup_channel(channel_config, :consumer = _role, channel, pattern, queue) do
+  defp setup_channel(channel_config, :consumer, channel, pattern, queue) do
     with consumer_prefetch <- pattern.consumer_prefetch(channel_config),
          consumer_ack <- pattern.consumer_ack(channel_config),
          :ok <- setup_consumer_prefetch(channel, consumer_prefetch),
@@ -327,7 +334,7 @@ defmodule Lapin.Connection do
     end
   end
 
-  defp setup_channel(channel_config, :producer = _role, channel, pattern, _queue) do
+  defp setup_channel(channel_config, :producer, channel, pattern, _queue) do
     with publisher_confirm <- pattern.publisher_confirm(channel_config),
          :ok <- setup_publisher_confirm(channel, publisher_confirm) do
       {:ok, channel_config}
@@ -335,6 +342,10 @@ defmodule Lapin.Connection do
       error ->
         error
     end
+  end
+
+  defp setup_channel(channel_config, :passive, _channel, _pattern, _queue) do
+    {:ok, channel_config}
   end
 
   defp setup_consumer_prefetch(_channel, nil = _consumer_prefetch), do: :ok
