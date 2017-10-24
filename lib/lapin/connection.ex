@@ -384,13 +384,11 @@ defmodule Lapin.Connection do
          {_, configuration} <- Keyword.get_and_update(configuration, :port, fn port ->
            {port, map_port(port)}
          end),
-         {_, configuration} = Keyword.get_and_update(configuration, :auth_mechanisms, fn mechanisms ->
-           case mechanisms do
-             list when is_list(list) ->
-               {mechanisms, Enum.map(list, &map_auth_mechanism(&1))}
-             _ ->
-               :pop
-          end
+         {_, configuration} = Keyword.get_and_update(configuration, :auth_mechanisms, fn
+           mechanisms when is_list(mechanisms) ->
+             {mechanisms, Enum.map(mechanisms, &map_auth_mechanism(&1))}
+           _ ->
+            :pop
         end) do
       {:ok, configuration}
     else
