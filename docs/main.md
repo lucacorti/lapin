@@ -50,7 +50,7 @@ and define your worker module as follows:
 
 ```elixir
 defmodule MyApp.SomeWorker do
-  use Lapin.Worker, patter: Lapin.Pattern.WorkQueue
+  use Lapin.Worker, pattern: Lapin.Pattern.WorkQueue
 end
 ```
 
