@@ -12,42 +12,42 @@ defmodule LapinTest do
       exchange: exchange,
       queue: queue,
       producer: [
-        handle: :test_producer,
+        module: LapinTest.HelloWorld,
         virtual_host: "local",
         channels: [
           [
             role: :producer,
-            worker: LapinTest.HelloWorldWorker,
+            pattern: Lapin.Pattern.HelloWorld,
             exchange: exchange,
             queue: queue
           ]
         ]
       ],
       consumer: [
-        handle: :test_consumer,
+        module: LapinTest.HelloWorld,
         virtual_host: "local",
         channels: [
           [
             role: :consumer,
-            worker: LapinTest.HelloWorldWorker,
+            pattern: Lapin.Pattern.HelloWorld,
             exchange: exchange,
             queue: queue
           ]
         ]
       ],
       passive: [
-        handle: :test_passive,
+        module: LapinTest.HelloWorld,
         virtual_host: "local",
         channels: [
           [
             role: :passive,
-            worker: LapinTest.HelloWorldWorker,
+            pattern: Lapin.Pattern.HelloWorld,
             exchange: exchange,
             queue: queue
           ],
           [
             role: :passive,
-            worker: LapinTest.HelloWorldWorker,
+            pattern: Lapin.Pattern.HelloWorld,
             exchange: exchange,
             queue: queue
           ]

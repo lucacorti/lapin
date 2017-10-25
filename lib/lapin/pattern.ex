@@ -17,6 +17,11 @@ defmodule Lapin.Pattern do
   alias Lapin.Connection
 
   @typedoc """
+  Channel role
+  """
+  @type role :: :consumer | :producer | :passive
+
+  @typedoc """
   Consumer Tag
   """
   @type consumer_tag :: String.t
