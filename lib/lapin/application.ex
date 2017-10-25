@@ -8,6 +8,6 @@ defmodule Lapin.Application do
   def start(_type, _args) do
     :lapin
     |> Application.get_env(:connections, [])
-    |> Lapin.Supervisor.start_link()
+    |> Lapin.Connection.Supervisor.start_link()
   end
 end
