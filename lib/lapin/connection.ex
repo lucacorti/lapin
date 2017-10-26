@@ -38,7 +38,7 @@ defmodule Lapin.Connection do
   Connection configuration
 
   The following keys are supported:
-    - module: module adopting the `Lapin.Connection` behaviour
+    - module: module using the `Lapin.Connection` behaviour
     - host: broker hostname (string | charlist), *default: 'localhost'*
     - port: broker port (string | integer), *default: 5672*
     - virtual_host: broker vhost (string), *default: ""*
@@ -58,7 +58,7 @@ defmodule Lapin.Connection do
       - `:consumer`: Receives messages from the channel via `Lapin.Connection` callbacks
       - `:producer`: Can publish messages to che channel
       - `:passive`: Used to declare channel configuration, can't receive nor publish
-    - pattern: channel pattern (module adopting the `Lapin.Pattern` behaviour)
+    - pattern: channel pattern (module using the `Lapin.Pattern` behaviour)
     - exchange: broker exchange (`String.t`)
     - queue: broker queue (`String.t`)
 
@@ -94,12 +94,12 @@ defmodule Lapin.Connection do
   @doc """
   Called when receiving a `basic.cancel` from the broker.
   """
-  @callback handle_cancel(channel_config :: Connection.channel_config) :: on_callback
+  @callback handle_cancel(channel_config) :: on_callback
 
   @doc """
   Called when receiving a `basic.cancel_ok` from the broker.
   """
-  @callback handle_cancel_ok(channel_config :: Connection.channel_config) :: on_callback
+  @callback handle_cancel_ok(channel_config) :: on_callback
 
   @doc """
   Called when receiving a `basic.deliver` from the broker.
@@ -114,28 +114,28 @@ defmodule Lapin.Connection do
   `reason` term can be used by the application to signal the reason of rejection
    and is logged in debug.
   """
-  @callback handle_deliver(channel_config :: Connection.channel_config, message :: Message.t) :: on_deliver
+  @callback handle_deliver(message :: Message.t) :: on_deliver
 
   @doc """
   Called when receiving a `basic.consume_ok` from the broker.
 
   This signals successul registration as a consumer.
   """
-  @callback handle_consume_ok(channel_config :: Connection.channel_config) :: on_callback
+  @callback handle_consume_ok(channel_config) :: on_callback
 
   @doc """
   Called when completing a `basic.publish` with the broker.
 
   Message transmission to the broker is successful when this callback is called.
   """
-  @callback handle_publish(channel_config :: Connection.channel_config, message :: Message.t) :: on_callback
+  @callback handle_publish(message :: Message.t) :: on_callback
 
   @doc """
   Called when receiving a `basic.return` from the broker.
 
   THis signals an undeliverable returned message from the broker.
   """
-  @callback handle_return(channel_config :: Connection.channel_config, message :: Message.t) :: on_callback
+  @callback handle_return(message :: Message.t) :: on_callback
 
   defmacro __using__(_) do
     quote do
@@ -144,28 +144,27 @@ defmodule Lapin.Connection do
 
       @behaviour Lapin.Connection
 
-      def handle_cancel(_consumer_tag), do: :ok
-      def handle_cancel_ok(_consumer_tag), do: :ok
+      def handle_cancel(_channel_config), do: :ok
+      def handle_cancel_ok(_channel_config), do: :ok
       def handle_consume_ok(_channel_config), do: :ok
-      def handle_deliver(_channel_config, _message), do: :ok
-      def handle_publish(_channel_config, _message), do: :ok
-      def handle_return(_channel_config, _message), do: :ok
+      def handle_deliver(_message), do: :ok
+      def handle_publish(_message), do: :ok
+      def handle_return(_message), do: :ok
 
       defoverridable Lapin.Connection
 
       def publish(exchange, routing_key, message, options \\ []) do
         Conn.publish(__MODULE__, exchange, routing_key, message, options)
       end
-
     end
   end
 
   @connection_mandatory_params [:module]
-  @channel_mandatory_params [:role, :pattern, :exchange, :queue]
-  @connection_default_params [connecion_timeout: 5_000]
+  @channel_mandatory_params [:role, :exchange, :queue]
+  @default_reconnection_delay 5_000
+  @connection_default_params [connecion_timeout: @default_reconnection_delay]
   @default_rabbitmq_host 'localhost'
   @default_rabbitmq_port 5672
-  @default_reconnection_delay 5_000
 
   @doc """
   Starts a `Lapin.Connection` with the specified configuration
@@ -196,7 +195,7 @@ defmodule Lapin.Connection do
     GenServer.call(connection, {:publish, exchange, routing_key, message, options})
   end
 
-  def handle_call({:publish, exchange, routing_key, message, options}, _from,
+  def handle_call({:publish, exchange, routing_key, %Message{meta: meta} = message, options}, _from,
   %{channels: channels, configuration: configuration} = state) do
     with module <- Keyword.get(configuration, :module),
          channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, routing_key),
@@ -205,13 +204,15 @@ defmodule Lapin.Connection do
          pattern <- Keyword.get(channel_config, :pattern),
          mandatory <- pattern.publisher_mandatory(channel_config),
          persistent <- pattern.publisher_persistent(channel_config),
+         options <- Keyword.merge(options, [exchange: exchange, routing_key: routing_key]),
          options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
          :ok <- Basic.publish(channel, exchange, routing_key, message.payload, options) do
       if not pattern.publisher_confirm(channel_config) or Confirm.wait_for_confirms(channel) do
-          Logger.debug fn -> "Published to '#{exchange}'->'#{routing_key}': #{inspect message}" end
-          {:reply, module.handle_publish(channel_config, message), state}
+          message = %Message{message | meta: Enum.into(options, meta)}
+          Logger.debug fn -> "Published #{inspect message}" end
+          {:reply, module.handle_publish(message), state}
         else
-          error = "Error publishing #{inspect message} to #{exchange}: broker did not confirm reception"
+          error = "Error publishing #{inspect message}"
           Logger.debug fn -> error end
           {:reply, {:error, error}, state}
         end
@@ -237,9 +238,9 @@ defmodule Lapin.Connection do
   def handle_info({:basic_cancel, %{consumer_tag: consumer_tag}},
   %{channels: channels, configuration: configuration} = state) do
     with module <- Keyword.get(configuration, :module),
-         channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
-         :ok <- module.handle_cancel(consumer_tag) do
-        Logger.debug fn -> "Broker cancelled consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end
+         channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag) do
+        Logger.debug fn -> "Broker cancelled consumer for channel #{inspect channel_config}" end
+        module.handle_cancel(channel_config)
     else
       nil ->
         Logger.warn "Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown channel"
@@ -253,13 +254,13 @@ defmodule Lapin.Connection do
   %{channels: channels, configuration: configuration} = state) do
     with module <- Keyword.get(configuration, :module),
          channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
-         :ok <- module.handle_cancel_ok(consumer_tag) do
-      Logger.debug fn -> "Broker confirmed cancel consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end
+         :ok <- module.handle_cancel_ok(channel_config) do
+      Logger.debug fn -> "Broker confirmed cancelling consumer for channel #{inspect channel_config}" end
     else
       nil ->
-        Logger.debug fn -> "Broker confirmed cancel for consumer_tag '#{consumer_tag}' for locally unknown channel" end
-      {:error, error} ->
-        Logger.error "Error confirming cancel for consumer_tag '#{consumer_tag}': #{error}"
+        Logger.debug fn -> "Broker confirmed cancelling consumer for locally unknown tag '#{consumer_tag}'" end
+      error ->
+        Logger.error "Error handling broker cancel for '#{consumer_tag}': #{inspect error}"
     end
     {:noreply, state}
   end
@@ -268,39 +269,40 @@ defmodule Lapin.Connection do
   %{channels: channels, configuration: configuration} = state) do
     with module <- Keyword.get(configuration, :module),
          channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
-         :ok <- module.handle_consume_ok(consumer_tag) do
-        Logger.debug fn -> "Broker registered consumer_tag '#{consumer_tag}' for channel #{inspect channel_config}" end
+          :ok <- module.handle_consume_ok(channel_config) do
+        Logger.debug fn -> "Broker registered consumer for channel #{inspect channel_config}" end
     else
       nil ->
-        Logger.warn "Broker registered consumer_tag '#{consumer_tag}', unknown channel"
-      {:error, error} ->
-        Logger.error "Broker error registration callback: #{error}"
+        Logger.warn "Broker registered consumer_tag '#{consumer_tag}' for locally unknown channel"
+      error ->
+        Logger.error "Error handling broker register for '#{consumer_tag}': #{inspect error}"
     end
     {:noreply, state}
   end
 
   def handle_info({:basic_deliver, payload, %{consumer_tag: consumer_tag} = meta},
   %{channels: channels, configuration: configuration} = state) do
-    with module <- Keyword.get(configuration, :module),
-         channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
-         channel when not is_nil(channel) <- Keyword.get(channel_config, :channel),
-         message <- %Message{meta: meta, payload: payload} do
+    module = Keyword.get(configuration, :module)
+    message =  %Message{meta: meta, payload: payload}
+    with channel_config when not is_nil(channel_config) <- get_channel_config(channels, consumer_tag),
+         channel when not is_nil(channel) <- Keyword.get(channel_config, :channel) do
       spawn(fn ->
         consume(module, channel, channel_config, message)
       end)
     else
       nil ->
-        Logger.error "Error processing message #{meta.delivery_tag}, unknown channel"
+        Logger.error "Error processing message '#{inspect message}', no local channel"
     end
     {:noreply, state}
   end
 
   def handle_info({:basic_return, payload, %{exchange: exchange, routing_key: routing_key} = meta},
   %{channels: channels, configuration: configuration} = state) do
-    with module <- Keyword.get(configuration, :module),
-         channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, routing_key),
-         :ok <- module.handle_return(channel_config, %Message{meta: meta, payload: payload}) do
-      Logger.debug fn -> "Returned message for '#{exchange}'->'#{routing_key}': #{inspect meta}" end
+    module = Keyword.get(configuration, :module)
+    message = %Message{meta: meta, payload: payload}
+    with channel_config when not is_nil(channel_config) <- get_channel_config(channels, exchange, routing_key),
+         :ok <- module.handle_return(message) do
+      Logger.debug fn -> "Broker returned message '#{inspect message}'" end
     else
       error ->
         Logger.debug fn -> "Error handling returned message: #{inspect error}" end
@@ -323,42 +325,39 @@ defmodule Lapin.Connection do
   end
 
   defp consume(module, channel, channel_config, %Message{meta: %{delivery_tag: delivery_tag}} = message) do
-    Logger.debug fn -> "Consuming message #{delivery_tag}" end
+    Logger.debug fn -> "Consuming message '#{delivery_tag}'" end
 
     with pattern = Keyword.get(channel_config, :pattern),
          consumer_ack <- pattern.consumer_ack(channel_config),
-         :ok <- module.handle_deliver(channel_config, message) do
+         :ok <- module.handle_deliver(message) do
       consume_ack(consumer_ack, channel, delivery_tag)
      else
-      {:reject, reason} ->
-        Basic.reject(channel, delivery_tag, requeue: false)
-        Logger.debug fn -> "Message #{delivery_tag} REJECTED, NOT REQUEUED: #{inspect reason}" end
       {:requeue, reason} ->
         Basic.reject(channel, delivery_tag, requeue: true)
-        Logger.debug fn -> "Message #{delivery_tag} NOT CONSUMED, REQUEUED: #{inspect reason}" end
-      error ->
+        Logger.debug fn -> "Requeued message '#{delivery_tag}': #{inspect reason}" end
+      reason ->
         Basic.reject(channel, delivery_tag, requeue: false)
-        Logger.debug fn -> "Message #{delivery_tag} INVALID RETURN VALUE, NOT REQUEUED: #{inspect error}" end
+        Logger.debug fn -> "Rejected message #{delivery_tag}: #{inspect reason}" end
     end
 
     rescue
       exception ->
         Basic.reject(channel, delivery_tag, requeue: false)
-        Logger.error "Message #{delivery_tag} CONSUMER CRASHED, NOT REQUEUED: #{inspect exception}"
+        Logger.error "Rejected message #{delivery_tag}: #{inspect exception}"
   end
 
   defp consume_ack(true = _consumer_ack, channel, delivery_tag) do
     if Basic.ack(channel, delivery_tag) do
-      Logger.debug fn -> "Message #{delivery_tag} consumed successfully, with ACK" end
+      Logger.debug fn -> "Consumed message #{delivery_tag} successfully, ACK" end
       :ok
     else
-      Logger.debug fn -> "Message #{delivery_tag} ACK failed" end
+      Logger.debug fn -> "ACK failed for message #{delivery_tag}" end
       :error
     end
   end
 
   defp consume_ack(false = _consumer_ack, _channel, delivery_tag) do
-    Logger.debug fn -> "Message #{delivery_tag} consumed successfully, without ACK" end
+    Logger.debug fn -> "Consumed message #{delivery_tag}, no ACK required" end
     :ok
   end
 
@@ -387,7 +386,7 @@ defmodule Lapin.Connection do
          queue_durable <- pattern.queue_durable(channel_config),
          routing_key <- pattern.routing_key(channel_config),
          {:ok, channel} <- Channel.open(connection),
-         channel_config <- Keyword.merge(channel_config, [channel: channel, routing_key: routing_key]),
+         channel_config <- Keyword.merge(channel_config, [pattern: pattern, channel: channel, routing_key: routing_key]),
          :ok <- Exchange.declare(channel, exchange, exchange_type, durable: exchange_durable),
          {:ok, _info} <- Queue.declare(channel, queue, durable: queue_durable, arguments: queue_arguments),
          :ok <- Queue.bind(channel, queue, exchange, routing_key: routing_key),
@@ -413,7 +412,7 @@ defmodule Lapin.Connection do
          :ok <- setup_consumer_prefetch(channel, consumer_prefetch),
          {:ok, consumer_tag} = Basic.consume(channel, queue, nil, no_ack: not consumer_ack),
          channel_config <- Keyword.put(channel_config, :consumer_tag, consumer_tag) do
-      Logger.debug fn -> "#{consumer_tag}: consumer bound to queue '#{queue}'" end
+      Logger.debug fn -> "Consumer '#{consumer_tag}' bound to queue '#{queue}'" end
       {:ok, channel_config}
     else
       error ->

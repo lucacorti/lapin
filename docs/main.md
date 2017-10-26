@@ -27,16 +27,14 @@ example:
 ```elixir
 config :lapin, :connections, [
   [
-    handle: :myhandle
+    module: MyApp.SomeWorker
     channels: [
       [
-        worker: MyApp.SomeWorker,
         role: :consumer,
         exchange: "some_exchange",
         queue: "some_queue"
       ],
       [
-        worker: MyApp.SomeWorker,
         role: :producer,
         exchange: "some_exchange",
         queue: "some_queue"
@@ -50,7 +48,7 @@ and define your worker module as follows:
 
 ```elixir
 defmodule MyApp.SomeWorker do
-  use Lapin.Worker, pattern: Lapin.Pattern.WorkQueue
+  use Lapin.Connection
 end
 ```
 
@@ -59,11 +57,11 @@ run your application with `iex -S mix` and publish a message:
 
 ```elixir
 ...
-iex(1)> Lapin.publish(:myhandle, "some_exchange", "some_queue", %Lapin.Message{payload: "test"})
-[debug] Published to 'test'->'test': %Lapin.Message{meta: nil, payload: "test"}
+iex(1)> Lapin.Connection.publish(MyApp.SomeWorker, "exchange", "routing_key", %Lapin.Message{payload: "test"})
+[debug] Published '%Lapin.Message{meta: nil, payload: "test"}'
 :ok
 [debug] Consuming message 1
-[debug] Message 1 consumed successfully, with ACK
+[debug] Message 1 consumed successfully, received ACK
 ...
 ```
 
@@ -77,20 +75,19 @@ which can implement a few callbacks to publish/consume messages and handle other
 type of events from the broker. Each connection can have one or more
 channels, each one either consuming *OR* publishing messages.
 
-The default worker implementation simply logs events at log level `:debug`.
+The default implementation of all callbacks simply returns `:ok`.
 
-You need to configure a worker module for all channels. To implement a worker
-module, define a module and use the `Lapin.Worker` behaviour, then add it under
-the `worker` key in your channel configuration.
+You need to configure a worker module for all connections. To implement a worker
+module, define a module and use the `Lapin.Connection` behaviour, then add it
+under the `module` key in your channel configuration.
 
-For details on implementing *Lapin* worker modules check out the `Lapin.Worker`
+For details on implementing *Lapin* worker modules check out the `Lapin.Connection`
 behaviour documentation.
 
-At a minimum, you need to configure a *handle* for each connection and
-*role*, *worker*, *exchange* and *queue* for each channel.
-
-You can find a a complete list of connection configuration settings in the in
-`Lapin.Connection` *config* type specification.
+At a minimum, you need to configure a *module* for each connection and
+*role*, *exchange* and *queue* for each channel. You can find the complete list
+of connection configuration settings in the in `Lapin.Connection` *config* type
+specification.
 
 Advanced channel behaviour can be configured in two ways.
 
@@ -98,7 +95,8 @@ Advanced channel behaviour can be configured in two ways.
 
 If you are fine with a one shot configuration of your channels, you can specify
 any settings from the `Lapin.Connection` *channel_config* type specification
-directly in your channel configurations with the default `Lapin.Worker` module.
+directly in your channel configurations and use the default `Lapin.Pattern`
+implementation.
 
 This is quick and easy way to start.
 
@@ -106,7 +104,7 @@ This is quick and easy way to start.
 
 ```elixir
 defmodule MyApp.SomeWorker do
-  use Lapin.Worker
+  use Lapin.Connection
 end
 ```
 
@@ -115,10 +113,9 @@ end
 ```elixir
 config :lapin, :connections, [
   [
-    handle: :myhandle,
+    module: MyApp.SomeWorker,
     channels: [
       [
-        worker: MyApp.SomeWorker,
         role: :consumer,
         exchange: "some_exchange",
         queue: "some_queue",
@@ -126,7 +123,6 @@ config :lapin, :connections, [
         queue_durable: false
       ],
       [
-        worker: MyApp.SomeWorker,
         role: :producer,
         exchange: "some_exchange",
         queue: "some_queue",
@@ -144,11 +140,10 @@ If you need to configure a lot of channels in the same way, you can use a
 behaviour callbacks bundled in a module, which you can then reuse in any worker
 module when you need the same kind of interaction pattern in a channel.
 
-To do this, you need to define your pattern module by *use* ing `Lapin.Pattern`
-and specify it in your worker module by passing the *pattern* key when *use* ing
-`Lapin.Worker`.
+To do this, you need to define your pattern module by `use Lapin.Pattern`
+and specifying it in your in your channel configuration under the *pattern* key.
 
-In fact `Lapin` bundles a few `Lapin.Pattern` modules implementing the
+In fact `Lapin` bundles a few `Lapin.Pattern` implementations for the
 *RabbitMQ* [tutorials patterns](https://www.rabbitmq.org/getstarted.html).
 
 `lib/myapp/some_pattern.ex`:
@@ -163,28 +158,21 @@ defmodule MyApp.SomePattern do
 end
 ```
 
-`lib/myapp/some_worker.ex`:
-
-```elixir
-defmodule MyApp.SomeWorker do
-  use Lapin.Worker, pattern: MyApp.SomePattern
-end
-```
-
 `config/config.exs`:
 
 ```elixir
 config :lapin, :connections, [
   [
+    module: MyApp.SomeWorker
     channels: [
       [
-        worker: MyApp.SomeWorker,
+        pattern: MyApp.SomePattern,
         role: :consumer,
         exchange: "some_exchange",
         queue: "some_queue"
       ],
       [
-        worker: MyApp.SomeWorker,
+        pattern: MyApp.SomePattern,
         role: :producer,
         exchange: "some_exchange",
         queue: "some_queue"
@@ -206,44 +194,43 @@ settings from the configuration file and provides sensible defaults if needed.
 ### Consuming messages ###
 
 Once you have completed your configuration, connections will be automatically
-established and the worker modules with `:consumer` role will start receiving
+established and channels with a `:consumer` role will start receiving
 messages published on the queues they are consuming.
 
-You can handle received messages by overriding the `Lapin.Worker.handle_deliver/2`
-callback. The default implementation simply returns `:ok`.
+You can handle received messages by overriding the `Lapin.Connection.handle_deliver/1`
+callback. The default implementation simply logs messages and returns `:ok`.
 
 ```elixir
 defmodule MyApp.SomeWorker do
-  use Lapin.Worker, pattern: MyApp.SomePattern
+  use Lapin.Connection
 
-  def handle_deliver(channel_config, message) do
-    Logger.debug fn -> "received #{inspect message} on channel #{inspect channel_config}" end
+  def handle_deliver(message) do
+    Logger.debug fn -> "received #{inspect message}" end
   end
 end
 ```
 
 Messages are considered to be successfully consumed if the
-`Lapin.Worker.handle_deliver/2` callback returns `:ok`. See the callback
+`Lapin.Connection.handle_deliver/1` callback returns `:ok`. See the callback
 documentation for a complete list of possible values you can return to signal
 message acknowledgement and rejection to the broker.
 
 ### Publishing messages ###
 
-To publish messages using workers with `:producer` role, you can use the
-`Lapin.publish/5` function passing the connection handle for your connection,
-or directly call `Lapin.Connection.publish/5` if you manually started a connection
-with `Lapin.Connection.start_link/1`.
+To publish messages on channels with a `:producer` role, you can use the
+`publish` function injected in your worker module by `use Lapin.Connection`,
+or directly call `Lapin.Connection.publish/5` by passing your worker module as
+a connection.
 
 `config/config.exs`:
 
 ```elixir
 config :lapin, :connections, [
   [
-    handle: :myhandle,
+    module: MyApp.SomeWorker,
     channels: [
       [
         role: :producer,
-        worker: MyApp.SomeWorker,
         exchange: "some_exchange",
         queue: "some_queue"
       ]
@@ -252,28 +239,34 @@ config :lapin, :connections, [
 ]
 ```
 
-Via `Lapin`:
+In a woker module implementation using the `Lapin.Connection` behaviour:
 
 ```elixir
-:ok = Lapin.publish(:myhandle, "some_exchange", "routing_key", %Lapin.Message{}, [])  
+:ok = publish("some_exchange", "routing_key", %Lapin.Message{}, [])  
 ```
 
-Via `Lapin.Connection` if you are starting a `Lapin.Connection` directly:
+Via `Lapin.Connection` by passing the worker module as the connection:
 
 ```elixir
-{:ok, connection} = Lapin.Connection.start_link([
-  handle: :myhandle,
+:ok = Lapin.Connection.publish(MyApp.SomeWorker, "some_exchange", "routing_key", %Lapin.Message{}, [])
+```
+
+If you are starting a `Lapin.Connection` manually, you can also pass the connection pid:
+
+```elixir
+{:ok, pid} = Lapin.Connection.start_link([
+  module:  MyApp.SomeWorker,
   channels: [
     [
       role: :producer,
-      worker: MyApp.SomeWorker,
+      pattern: MyApp.SomePattern,
       exchange: "some_exchange",
       queue: "some_queue"
     ]
   ]
 ])
 
-:ok = Lapin.Connection.publish(connection, "some_exchange", "routing_key", %Lapin.Message{}, [])
+:ok = Lapin.Connection.publish(pid, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```
 
 ### Declaring broker configuration ###
@@ -287,17 +280,16 @@ channel and declare exchanges, queues and queue bindings, reporting any
 discrepancies between the configuration and the broker state if there are any.
 
 ```elixir
-{:ok, connection} = Lapin.Connection.start_link([
-  handle: :myhandle,
+{:ok, pid} = Lapin.Connection.start_link([
+  module: MyApp.SomeWorker,
   channels: [
     [
       role: :passive,
-      worker: MyApp.SomeWorker,
       exchange: "some_exchange",
       queue: "some_queue"
     ]
   ]
 ])
 
-{:error, message} = Lapin.Connection.publish(connection, "some_exchange", "routing_key", %Lapin.Message{}, [])
+{:error, message} = Lapin.Connection.publish(pid, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```
