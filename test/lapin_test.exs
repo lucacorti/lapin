@@ -17,7 +17,6 @@ defmodule LapinTest do
         channels: [
           [
             role: :producer,
-            # pattern: Lapin.Pattern.HelloWorld,
             exchange: exchange,
             queue: queue
           ]
@@ -29,7 +28,6 @@ defmodule LapinTest do
         channels: [
           [
             role: :consumer,
-            # pattern: Lapin.Pattern.HelloWorld,
             exchange: exchange,
             queue: queue
           ]
@@ -41,13 +39,11 @@ defmodule LapinTest do
         channels: [
           [
             role: :passive,
-            # pattern: Lapin.Pattern.HelloWorld,
             exchange: exchange,
             queue: queue
           ],
           [
             role: :passive,
-            # pattern: Lapin.Pattern.HelloWorld,
             exchange: exchange,
             queue: queue
           ]
