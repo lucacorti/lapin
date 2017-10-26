@@ -208,14 +208,14 @@ defmodule Lapin.Connection do
          options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
          :ok <- Basic.publish(channel, exchange, routing_key, message.payload, options) do
       if not pattern.publisher_confirm(channel_config) or Confirm.wait_for_confirms(channel) do
-          message = %Message{message | meta: Enum.into(options, meta)}
-          Logger.debug fn -> "Published #{inspect message}" end
-          {:reply, module.handle_publish(message), state}
-        else
-          error = "Error publishing #{inspect message}"
-          Logger.debug fn -> error end
-          {:reply, {:error, error}, state}
-        end
+        message = %Message{message | meta: Enum.into(options, meta)}
+        Logger.debug fn -> "Published #{inspect message}" end
+        {:reply, module.handle_publish(message), state}
+      else
+        error = "Error publishing #{inspect message}"
+        Logger.debug fn -> error end
+        {:reply, {:error, error}, state}
+      end
     else
       :passive ->
         error = "Cannot publish, channel role is :passive"
