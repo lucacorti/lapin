@@ -1,6 +1,6 @@
 defmodule Lapin.Connection.Supervisor do
   @moduledoc """
-  Lapin Supervisor
+  Lapin Connections Supervisor
   """
   use Supervisor
   require Logger
