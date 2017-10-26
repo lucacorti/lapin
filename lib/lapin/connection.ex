@@ -473,7 +473,7 @@ defmodule Lapin.Connection do
              {mechanisms, Enum.map(mechanisms, &map_auth_mechanism(&1))}
            _ ->
             :pop
-        end) do
+         end) do
       {:ok, configuration}
     else
       {:error, :missing_params, missing_params} ->
