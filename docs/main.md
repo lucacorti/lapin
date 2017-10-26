@@ -57,7 +57,7 @@ run your application with `iex -S mix` and publish a message:
 
 ```elixir
 ...
-iex(1)> Lapin.Connection.publish(MyApp.SomeWorker, "exchange", "routing_key", %Lapin.Message{payload: "test"})
+iex(1)> MyApp.SomeWorker.publish("exchange", "routing_key", %Lapin.Message{payload: "test"})
 [debug] Published '%Lapin.Message{meta: nil, payload: "test"}'
 :ok
 [debug] Consuming message 1
@@ -239,10 +239,10 @@ config :lapin, :connections, [
 ]
 ```
 
-In a woker module implementation using the `Lapin.Connection` behaviour:
+Using the woker module implementation:
 
 ```elixir
-:ok = publish("some_exchange", "routing_key", %Lapin.Message{}, [])  
+:ok = MyApp.SomeWorker.publish("some_exchange", "routing_key", %Lapin.Message{}, [])  
 ```
 
 Via `Lapin.Connection` by passing the worker module as the connection:
