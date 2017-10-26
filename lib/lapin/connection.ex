@@ -131,7 +131,7 @@ defmodule Lapin.Connection do
   @doc """
   Called when receiving a `basic.return` from the broker.
 
-  THis signals an undeliverable returned message from the broker.
+  This signals an undeliverable returned message from the broker.
   """
   @callback handle_return(message :: Message.t) :: on_callback
 
