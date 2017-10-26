@@ -394,10 +394,8 @@ defmodule Lapin.Connection do
       channel_config
     else
       {:error, :missing_params, missing_params} ->
-        missing_params = missing_params
-        |> Enum.map(&Atom.to_string(&1))
-        |> Enum.join(", ")
-        error = "Error creating channel #{inspect channel_config}: missing mandatory params: #{missing_params}"
+        params = Enum.join(missing_params, ", ")
+        error = "Error creating channel #{inspect channel_config}: missing mandatory params: #{params}"
         Logger.error error
         {:error, error}
       {:error, error} ->
@@ -479,10 +477,8 @@ defmodule Lapin.Connection do
       {:ok, configuration}
     else
       {:error, :missing_params, missing_params} ->
-        missing_params = missing_params
-        |> Enum.map(&Atom.to_string(&1))
-        |> Enum.join(", ")
-        error = "Error creating connection #{inspect configuration}: missing mandatory params: #{missing_params}"
+        params = Enum.join(missing_params, ", ")
+        error = "Error creating connection #{inspect configuration}: missing mandatory params: #{params}"
         Logger.error error
         {:error, error}
     end
