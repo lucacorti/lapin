@@ -62,7 +62,7 @@ defmodule Lapin.Connection do
     - exchange: broker exchange (`String.t`)
     - queue: broker queue (`String.t`)
 
-  If using the default `Lapin.Pattern` implementation, the following keys are also supported:
+  If using the `Lapin.Pattern.Config` default implementation, the following keys are also supported:
     - consumer_ack: send consumer ack (boolean), *default: false*
     - consumer_prefetch cosumer prefetch (integer | nil), *default: nil*
     - exchange_type: declare type of the exchange (:direct, :fanout, :topic), *default: :direct*
@@ -89,7 +89,7 @@ defmodule Lapin.Connection do
   @typedoc """
   `Lapin.Conenction` handle_deliver callback result
   """
-  @type on_deliver :: :ok | {:reject, reason} | {:requeue, reason} | term
+  @type on_deliver :: :ok | {:requeue, reason} | term
 
   @doc """
   Called when receiving a `basic.cancel` from the broker.
@@ -107,12 +107,10 @@ defmodule Lapin.Connection do
   Return values from this callback determine message acknowledgement:
     - `:ok`: Message was processed by the consumer and should be removed from queue
     - `{:requeue, reason}`: Message was not processed and should be requeued
-    - `{:reject, reason}`: Message was not processed but should NOT be requeued
 
-  Any other return value, including a crash in the callback code, has the same
-  effect as `{:reject, reason}`: it rejects the message WITHOUT requeueing. The
-  `reason` term can be used by the application to signal the reason of rejection
-   and is logged in debug.
+  Any other return value, including a crash in the callback code, rejects the
+  message WITHOUT requeueing. The `reason` term can be used by the application
+  to signal the reason of rejection and is logged in debug.
   """
   @callback handle_deliver(message :: Message.t) :: on_deliver
 
