@@ -1,6 +1,6 @@
 # Lapin
 
-**Elixir RabbitMQ Client Edit**
+**Elixir RabbitMQ Client**
 
 ## Installation
 
