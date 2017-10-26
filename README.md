@@ -1,11 +1,6 @@
 # Lapin
 
-<<<<<<< HEAD
 **Elixir RabbitMQ Client Edit**
-=======
-**Elixir RabbitMQ Client Edit
-**
->>>>>>> 4e8bf3509ed1109527541517392c3cab88f00598
 
 ## Installation
 
