@@ -127,10 +127,7 @@ defmodule Lapin.Pattern do
       def queue_durable(channel_config), do: Keyword.get(channel_config, :queue_durable, @queue_durable)
       def routing_key(channel_config), do: Keyword.get(channel_config, :routing_key, @routing_key)
 
-      defoverridable [consumer_ack: 1, consumer_prefetch: 1, exchange_type: 1,
-                      exchange_durable: 1, publisher_confirm: 1,
-                      publisher_mandatory: 1, publisher_persistent: 1,
-                      queue_arguments: 1, queue_durable: 1, routing_key: 1]
+      defoverridable Lapin.Pattern
     end
   end
 end

@@ -18,5 +18,5 @@ defmodule Lapin.Message do
   """
   @type t :: %__MODULE__{meta: meta, payload: payload}
 
-  defstruct [meta: nil, payload: nil]
+  defstruct [meta: %{}, payload: ""]
 end
