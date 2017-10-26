@@ -306,11 +306,6 @@ defmodule Lapin.Connection do
     {:stop, :normal, state}
   end
 
-  def handle_info(msg, state) do
-    Logger.warn "MESSAGE: #{inspect msg}"
-    {:noreply, state}
-  end
-
   def terminate(_reason, %{connection: connection}) do
     Connection.close(connection)
   end
