@@ -1,37 +1,36 @@
 defmodule Lapin.Connection do
   @moduledoc """
   RabbitMQ connection handler
+
+  This module handles the RabbitMQ connection. It also provides a behaviour for
+  worker module implementation. The worker module should use the `Lapin.Connection`
+  behaviour and implement the callbacks it needs.
+
+  When using the `Lapin.Connection` behaviour a `publish/4` function is injected in
+  the worker module as a shortcut to the `Lapin.Connection.publish/5` function
+  which removes the need for passing in the connection and is publicly callable
+  to publish messages on the connection configured for the implementing module.
   """
+
+  use GenServer
   use AMQP
   require Logger
 
-  use GenServer
+  alias Lapin.Message
 
-  alias Lapin.{Message, Worker}
-
-  @typedoc """
-  Connection
-  """
+  @typedoc "Connection"
   @type t :: GenServer.server
 
-  @typedoc """
-  Module conforming to `Lapin.Pattern`
-  """
+  @typedoc "Pattern module conforming to `Lapin.Pattern`"
   @type pattern :: Lapin.Pattern
 
-  @typedoc """
-  Exchange name
-  """
+  @typedoc "Exchange name"
   @type exchange :: String.t
 
-  @typedoc """
-  Queue name
-  """
+  @typedoc "Queue name"
   @type queue :: String.t
 
-  @typedoc """
-  Routing key
-  """
+  @typedoc "Routing key"
   @type routing_key :: String.t
 
   @typedoc """
@@ -76,19 +75,13 @@ defmodule Lapin.Connection do
   """
   @type channel_config :: Keyword.t
 
-  @typedoc """
-  `Lapin.Connection` generic callback result
-  """
+  @typedoc "`Lapin.Connection` callback result"
   @type on_callback :: :ok | {:error, message :: String.t}
 
-  @typedoc """
-  Reason for message rejection
-  """
+  @typedoc "Reason for message rejection"
   @type reason :: term
 
-  @typedoc """
-  `Lapin.Conenction` handle_deliver callback result
-  """
+  @typedoc "`Lapin.Conenction` handle_deliver callback result"
   @type on_deliver :: :ok | {:requeue, reason} | term
 
   @doc """
@@ -187,8 +180,8 @@ defmodule Lapin.Connection do
   @doc """
   Publishes a message to the specified exchange with the given routing_key
   """
-  @spec publish(connection :: t, exchange, routing_key,
-  message :: Message.t, options :: Keyword.t) :: Worker.on_callback
+  @spec publish(connection :: t, exchange, routing_key, message :: Message.t,
+  options :: Keyword.t) :: on_callback
   def publish(connection, exchange, routing_key, message, options \\ []) do
     GenServer.call(connection, {:publish, exchange, routing_key, message, options})
   end
@@ -314,8 +307,8 @@ defmodule Lapin.Connection do
   end
 
   def handle_info(msg, state) do
-     Logger.warn "MESSAGE: #{inspect msg}"
-     {:noreply, state}
+    Logger.warn "MESSAGE: #{inspect msg}"
+    {:noreply, state}
   end
 
   def terminate(_reason, %{connection: connection}) do
