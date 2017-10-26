@@ -255,7 +255,7 @@ If you are starting a `Lapin.Connection` manually, you can also pass the connect
 
 ```elixir
 {:ok, pid} = Lapin.Connection.start_link([
-  module:  MyApp.SomeWorker,
+  module: MyApp.SomeWorker,
   channels: [
     [
       role: :producer,
