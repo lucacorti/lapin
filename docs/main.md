@@ -94,7 +94,7 @@ Advanced channel behaviour can be configured in two ways.
 ### One-shot, static channel configuration ###
 
 If you are fine with a one shot configuration of your channels, you can specify
-any settings from the `Lapin.Connection` *channel_config* type specification
+any settings from the `Lapin.Channel` *config* type specification
 directly in your channel configurations and use the default `Lapin.Pattern`
 implementation.
 
