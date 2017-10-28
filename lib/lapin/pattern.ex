@@ -14,92 +14,60 @@ defmodule Lapin.Pattern do
   ```
   """
 
-  alias Lapin.Connection
+  alias Lapin.Channel
 
-  @typedoc """
-  Channel role
-  """
-  @type role :: :consumer | :producer | :passive
-
-  @typedoc """
-  Consumer Tag
-  """
-  @type consumer_tag :: String.t
-
-  @typedoc """
-  Exchange name
-  """
-  @type exchange :: String.t
-
-  @typedoc """
-  Queue name
-  """
-  @type queue :: String.t
-
-  @typedoc """
-  Queue Arguments
-  """
-  @type queue_arguments :: [{String.t, atom, String.t}]
-
-  @typedoc """
-  Consumer Prefetch
-  """
-  @type consumer_prefetch :: Integer.t | nil
-
-  @typedoc """
-  Routing key
-  """
-  @type routing_key :: String
+  @typedoc "Lapin Pattern Behaviour"
+  @type t :: __MODULE__
 
   @doc """
   Consumer acknowledgements enabled
   """
-  @callback consumer_ack(channel_config :: Connection.channel_config) :: boolean
+  @callback consumer_ack(channel_config :: Channel.config) :: boolean
 
   @doc """
   Consumer message prefetch count
   """
-  @callback consumer_prefetch(channel_config :: Connection.channel_config) :: consumer_prefetch
+  @callback consumer_prefetch(channel_config :: Channel.config) :: Channel.consumer_prefetch
 
   @doc """
   Declare exchange type
   """
-  @callback exchange_type(channel_config :: Connection.channel_config) :: boolean
+  @callback exchange_type(channel_config :: Channel.config) :: boolean
 
   @doc """
   Declare exchange durable
   """
-  @callback exchange_durable(channel_config :: Connection.channel_config) :: boolean
+  @callback exchange_durable(channel_config :: Channel.config) :: boolean
 
   @doc """
   Request publisher confirms (RabbitMQ only)
   """
-  @callback publisher_confirm(channel_config :: Connection.channel_config) :: boolean
+  @callback publisher_confirm(channel_config :: Channel.config) :: boolean
 
   @doc """
   Request message persistence when publishing
   """
-  @callback publisher_persistent(channel_config :: Connection.channel_config) :: boolean
+  @callback publisher_persistent(channel_config :: Channel.config) :: boolean
 
   @doc """
   Request message mandatory routing when publishing
   """
-  @callback publisher_mandatory(channel_config :: Connection.channel_config) :: boolean
+  @callback publisher_mandatory(channel_config :: Channel.config) :: boolean
 
   @doc """
   Declare queue arguments
   """
-  @callback queue_arguments(channel_config :: Connection.channel_config) :: queue_arguments
+  @callback queue_arguments(channel_config :: Channel.config) :: Channel.queue_arguments
 
   @doc """
   Declare queue durable
   """
-  @callback queue_durable(channel_config :: Connection.channel_config) :: boolean
+  @callback queue_durable(channel_config :: Channel.config) :: boolean
 
   @doc """
   Bind queue to routing_key
   """
-  @callback routing_key(channel_config :: Connection.channel_config) :: routing_key
+  @callback routing_key(channel_config :: Channel.config) :: Channel.routing_key
 
   defmacro __using__([]) do
     quote do
