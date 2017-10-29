@@ -137,8 +137,8 @@ config :lapin, :connections, [
 
 If you need to configure a lot of channels in the same way, you can use a
 `Lapin.Pattern` to define channel settings. A pattern is simply a collection of
-behaviour callbacks bundled in a module, which you can then reuse in any worker
-module when you need the same kind of interaction pattern in a channel.
+behaviour callbacks bundled in a module, which you can then reuse in any channel
+configuration when you need the same kind of interaction pattern.
 
 To do this, you need to define your pattern module by `use Lapin.Pattern`
 and specifying it in your in your channel configuration under the *pattern* key.
@@ -206,6 +206,27 @@ defmodule MyApp.SomeWorker do
 
   def handle_deliver(message) do
     Logger.debug fn -> "received #{inspect message}" end
+    :ok
+  end
+end
+```
+
+Since messages for all channels on the same connection are received by the same
+worker module, to dispatch messages to different handling logic you can pattern
+match on the `Lapin.Message.meta` map which contains message routing information.
+
+```elixir
+defmodule MyApp.SomeWorker do
+  use Lapin.Connection
+
+  def handle_deliver(%Message{meta: %{exchange: "a", queue: "b"}} = message) do
+    Logger.debug fn -> "received #{inspect message} on exchange a queue b" end
+    :ok
+  end
+
+  def handle_deliver(%Message{meta: %{exchange: "c", queue: "d"}} = message) do
+    Logger.debug fn -> "received #{inspect message} on exchange c queue d" end
+    :ok
   end
 end
 ```
