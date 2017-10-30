@@ -116,7 +116,7 @@ defmodule Lapin.Connection do
       def handle_cancel_ok(_channel), do: :ok
       def handle_consume_ok(_channel), do: :ok
       def handle_deliver(_channel, _message), do: :ok
-      def handle_publish(_channel,_message), do: :ok
+      def handle_publish(_channel, _message), do: :ok
       def handle_return(_channel, _message), do: :ok
       def payload_type(_channel, _message), do: <<>>
 
