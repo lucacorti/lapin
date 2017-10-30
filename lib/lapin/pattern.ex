@@ -22,52 +22,52 @@ defmodule Lapin.Pattern do
   @doc """
   Consumer acknowledgements enabled
   """
-  @callback consumer_ack(channel_config :: Channel.config) :: boolean
+  @callback consumer_ack(channel :: Channel.t) :: boolean
 
   @doc """
   Consumer message prefetch count
   """
-  @callback consumer_prefetch(channel_config :: Channel.config) :: Channel.consumer_prefetch
+  @callback consumer_prefetch(channel :: Channel.t) :: Channel.consumer_prefetch
 
   @doc """
   Declare exchange type
   """
-  @callback exchange_type(channel_config :: Channel.config) :: boolean
+  @callback exchange_type(channel :: Channel.t) :: boolean
 
   @doc """
   Declare exchange durable
   """
-  @callback exchange_durable(channel_config :: Channel.config) :: boolean
+  @callback exchange_durable(channel :: Channel.t) :: boolean
 
   @doc """
   Request publisher confirms (RabbitMQ only)
   """
-  @callback publisher_confirm(channel_config :: Channel.config) :: boolean
+  @callback publisher_confirm(channel :: Channel.t) :: boolean
 
   @doc """
   Request message persistence when publishing
   """
-  @callback publisher_persistent(channel_config :: Channel.config) :: boolean
+  @callback publisher_persistent(channel :: Channel.t) :: boolean
 
   @doc """
   Request message mandatory routing when publishing
   """
-  @callback publisher_mandatory(channel_config :: Channel.config) :: boolean
+  @callback publisher_mandatory(channel :: Channel.t) :: boolean
 
   @doc """
   Declare queue arguments
   """
-  @callback queue_arguments(channel_config :: Channel.config) :: Channel.queue_arguments
+  @callback queue_arguments(channel :: Channel.t) :: Channel.queue_arguments
 
   @doc """
   Declare queue durable
   """
-  @callback queue_durable(channel_config :: Channel.config) :: boolean
+  @callback queue_durable(channel :: Channel.t) :: boolean
 
   @doc """
   Bind queue to routing_key
   """
-  @callback routing_key(channel_config :: Channel.config) :: Channel.routing_key
+  @callback routing_key(channel :: Channel.t) :: Channel.routing_key
 
   defmacro __using__([]) do
     quote do
@@ -84,16 +84,16 @@ defmodule Lapin.Pattern do
       @queue_durable true
       @routing_key ""
 
-      def consumer_ack(channel_config), do: Keyword.get(channel_config, :consumer_ack, @consumer_ack)
-      def consumer_prefetch(channel_config), do: Keyword.get(channel_config, :consumer_prefetch, @consumer_prefetch)
-      def exchange_durable(channel_config), do: Keyword.get(channel_config, :exchange_durable, @exchange_durable)
-      def exchange_type(channel_config), do: Keyword.get(channel_config, :exchange_type, @exchange_type)
-      def publisher_confirm(channel_config), do: Keyword.get(channel_config, :publisher_confirm, @publisher_confirm)
-      def publisher_mandatory(channel_config), do: Keyword.get(channel_config, :publisher_mandatory, @publisher_mandatory)
-      def publisher_persistent(channel_config), do: Keyword.get(channel_config, :publisher_persistent, @publisher_persistent)
-      def queue_arguments(channel_config), do: Keyword.get(channel_config, :queue_arguments, @queue_arguments)
-      def queue_durable(channel_config), do: Keyword.get(channel_config, :queue_durable, @queue_durable)
-      def routing_key(channel_config), do: Keyword.get(channel_config, :routing_key, @routing_key)
+      def consumer_ack(channel), do: Keyword.get(channel.config, :consumer_ack, @consumer_ack)
+      def consumer_prefetch(channel), do: Keyword.get(channel.config, :consumer_prefetch, @consumer_prefetch)
+      def exchange_durable(channel), do: Keyword.get(channel.config, :exchange_durable, @exchange_durable)
+      def exchange_type(channel), do: Keyword.get(channel.config, :exchange_type, @exchange_type)
+      def publisher_confirm(channel), do: Keyword.get(channel.config, :publisher_confirm, @publisher_confirm)
+      def publisher_mandatory(channel), do: Keyword.get(channel.config, :publisher_mandatory, @publisher_mandatory)
+      def publisher_persistent(channel), do: Keyword.get(channel.config, :publisher_persistent, @publisher_persistent)
+      def queue_arguments(channel), do: Keyword.get(channel.config, :queue_arguments, @queue_arguments)
+      def queue_durable(channel), do: Keyword.get(channel.config, :queue_durable, @queue_durable)
+      def routing_key(channel), do: Keyword.get(channel.config, :routing_key, @routing_key)
 
       defoverridable Lapin.Pattern
     end

@@ -58,7 +58,7 @@ run your application with `iex -S mix` and publish a message:
 ```elixir
 ...
 iex(1)> MyApp.SomeWorker.publish("exchange", "routing_key", %Lapin.Message{payload: "test"})
-[debug] Published '%Lapin.Message{meta: nil, payload: "test"}'
+[debug] Published '%Lapin.Message{meta: %{}, payload: "test"}'
 :ok
 [debug] Consuming message 1
 [debug] Message 1 consumed successfully, received ACK
@@ -152,9 +152,9 @@ In fact `Lapin` bundles a few `Lapin.Pattern` implementations for the
 defmodule MyApp.SomePattern do
   use Lapin.Pattern
 
-  def exchange_type(_channel_config), do: :fanout,
-  def queue_durable(_channel_config), do: false  
-  def publisher_persistent(_channel_config), do: true
+  def exchange_type(_channel), do: :fanout,
+  def queue_durable(_channel), do: false  
+  def publisher_persistent(_channel), do: true
 end
 ```
 
@@ -197,15 +197,15 @@ Once you have completed your configuration, connections will be automatically
 established and channels with a `:consumer` role will start receiving
 messages published on the queues they are consuming.
 
-You can handle received messages by overriding the `Lapin.Connection.handle_deliver/1`
+You can handle received messages by overriding the `Lapin.Connection.handle_deliver/2`
 callback. The default implementation simply logs messages and returns `:ok`.
 
 ```elixir
 defmodule MyApp.SomeWorker do
   use Lapin.Connection
 
-  def handle_deliver(message) do
-    Logger.debug fn -> "received #{inspect message}" end
+  def handle_deliver(channel, message) do
+    Logger.debug fn -> "received #{inspect message} on #{inspect channel}" end
     :ok
   end
 end
@@ -213,26 +213,26 @@ end
 
 Since messages for all channels on the same connection are received by the same
 worker module, to dispatch messages to different handling logic you can pattern
-match on the `Lapin.Message.meta` map which contains message routing information.
+match on the `Channel.config` map which contains message routing information.
 
 ```elixir
 defmodule MyApp.SomeWorker do
   use Lapin.Connection
 
-  def handle_deliver(%Message{meta: %{exchange: "a", queue: "b"}} = message) do
-    Logger.debug fn -> "received #{inspect message} on exchange a queue b" end
+  def handle_deliver(%Channel{exchange: "a", queue: "b"} = channel, message) do
+    Logger.debug fn -> "received #{inspect message} on #{inspect channel}" end
     :ok
   end
 
-  def handle_deliver(%Message{meta: %{exchange: "c", queue: "d"}} = message) do
-    Logger.debug fn -> "received #{inspect message} on exchange c queue d" end
+  def handle_deliver(%Channel{exchange: "c", queue: "d"} = channel, message) do
+    Logger.debug fn -> "received #{inspect message} on #{inspect channel}" end
     :ok
   end
 end
 ```
 
 Messages are considered to be successfully consumed if the
-`Lapin.Connection.handle_deliver/1` callback returns `:ok`. See the callback
+`Lapin.Connection.handle_deliver/2` callback returns `:ok`. See the callback
 documentation for a complete list of possible values you can return to signal
 message acknowledgement and rejection to the broker.
 
