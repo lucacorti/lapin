@@ -11,12 +11,12 @@ defmodule Lapin.Message do
   @typedoc """
   Message payload
   """
-  @type payload :: binary
+  @type payload :: term
 
   @typedoc """
   Lapin Message container
   """
   @type t :: %__MODULE__{meta: meta, payload: payload}
 
-  defstruct [meta: %{}, payload: ""]
+  defstruct [meta: %{}, payload: <<>>]
 end
