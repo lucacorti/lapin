@@ -27,7 +27,7 @@ example:
 ```elixir
 config :lapin, :connections, [
   [
-    module: MyApp.SomeWorker
+    module: ExampleApp.SomeWorker
     channels: [
       [
         role: :consumer,
@@ -47,7 +47,7 @@ config :lapin, :connections, [
 and define your worker module as follows:
 
 ```elixir
-defmodule MyApp.SomeWorker do
+defmodule ExampleApp.SomeWorker do
   use Lapin.Connection
 end
 ```
@@ -57,11 +57,14 @@ run your application with `iex -S mix` and publish a message:
 
 ```elixir
 ...
-iex(1)> MyApp.SomeWorker.publish("exchange", "routing_key", %Lapin.Message{payload: "test"})
-[debug] Published '%Lapin.Message{meta: %{}, payload: "test"}'
+iex(1)> ExampleApp.SomeWorker.publish("exchange", "routing_key", %Lapin.Message{payload: "test"})
+[debug] Published %Lapin.Message{meta: %{content_type: nil, mandatory: false, persistent: false}, payload: ""} on %Lap
+in.Channel{amqp_channel: %AMQP.Channel{conn: %AMQP.Connection{pid: #PID<0.212.0>}, pid: #PID<0.221.0>}, config: [role: :producer, e
+xchange: "test_exchange", queue: "test_queue"], consumer_tag: nil, exchange: "test_exchange", pattern: Lapin.Pattern.Config, queue:
+ "test_queue", role: :producer, routing_key: ""}
 :ok
 [debug] Consuming message 1
-[debug] Message 1 consumed successfully, received ACK
+[debug] Consumed message 1 successfully, ACK sent
 ...
 ```
 
@@ -103,7 +106,7 @@ This is quick and easy way to start.
 `lib/myapp/some_worker.ex`:
 
 ```elixir
-defmodule MyApp.SomeWorker do
+defmodule ExampleApp.SomeWorker do
   use Lapin.Connection
 end
 ```
@@ -113,7 +116,7 @@ end
 ```elixir
 config :lapin, :connections, [
   [
-    module: MyApp.SomeWorker,
+    module: ExampleApp.SomeWorker,
     channels: [
       [
         role: :consumer,
@@ -149,7 +152,7 @@ In fact `Lapin` bundles a few `Lapin.Pattern` implementations for the
 `lib/myapp/some_pattern.ex`:
 
 ```elixir
-defmodule MyApp.SomePattern do
+defmodule ExampleApp.SomePattern do
   use Lapin.Pattern
 
   def exchange_type(_channel), do: :fanout,
@@ -163,16 +166,16 @@ end
 ```elixir
 config :lapin, :connections, [
   [
-    module: MyApp.SomeWorker
+    module: ExampleApp.SomeWorker
     channels: [
       [
-        pattern: MyApp.SomePattern,
+        pattern: ExampleApp.SomePattern,
         role: :consumer,
         exchange: "some_exchange",
         queue: "some_queue"
       ],
       [
-        pattern: MyApp.SomePattern,
+        pattern: ExampleApp.SomePattern,
         role: :producer,
         exchange: "some_exchange",
         queue: "some_queue"
@@ -201,7 +204,7 @@ You can handle received messages by overriding the `Lapin.Connection.handle_deli
 callback. The default implementation simply logs messages and returns `:ok`.
 
 ```elixir
-defmodule MyApp.SomeWorker do
+defmodule ExampleApp.SomeWorker do
   use Lapin.Connection
 
   def handle_deliver(channel, message) do
@@ -216,7 +219,7 @@ worker module, to dispatch messages to different handling logic you can pattern
 match on the `Channel.config` map which contains message routing information.
 
 ```elixir
-defmodule MyApp.SomeWorker do
+defmodule ExampleApp.SomeWorker do
   use Lapin.Connection
 
   def handle_deliver(%Channel{exchange: "a", queue: "b"} = channel, message) do
@@ -230,6 +233,10 @@ defmodule MyApp.SomeWorker do
   end
 end
 ```
+
+The `Lapin.Connection.payload_type/2` callback allows you to perform message
+payload decoding into custom data types. Read the `Lapin.Message.Payload`
+protocol documentation to know how to implement your decoding for your data types.
 
 Messages are considered to be successfully consumed if the
 `Lapin.Connection.handle_deliver/2` callback returns `:ok`. See the callback
@@ -248,7 +255,7 @@ a connection.
 ```elixir
 config :lapin, :connections, [
   [
-    module: MyApp.SomeWorker,
+    module: ExampleApp.SomeWorker,
     channels: [
       [
         role: :producer,
@@ -263,24 +270,24 @@ config :lapin, :connections, [
 Using the worker module implementation:
 
 ```elixir
-:ok = MyApp.SomeWorker.publish("some_exchange", "routing_key", %Lapin.Message{}, [])  
+:ok = ExampleApp.SomeWorker.publish("some_exchange", "routing_key", %Lapin.Message{}, [])  
 ```
 
 Via `Lapin.Connection` by passing the worker module as the connection:
 
 ```elixir
-:ok = Lapin.Connection.publish(MyApp.SomeWorker, "some_exchange", "routing_key", %Lapin.Message{}, [])
+:ok = Lapin.Connection.publish(ExampleApp.SomeWorker, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```
 
 If you are starting a `Lapin.Connection` manually, you can also pass the connection pid:
 
 ```elixir
 {:ok, pid} = Lapin.Connection.start_link([
-  module: MyApp.SomeWorker,
+  module: ExampleApp.SomeWorker,
   channels: [
     [
       role: :producer,
-      pattern: MyApp.SomePattern,
+      pattern: ExampleApp.SomePattern,
       exchange: "some_exchange",
       queue: "some_queue"
     ]
@@ -289,6 +296,13 @@ If you are starting a `Lapin.Connection` manually, you can also pass the connect
 
 :ok = Lapin.Connection.publish(pid, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```
+
+Message payload is assumed to be binary by default, but Lapin can handle message
+encoding and decoding. To implement automatic encoding of the message payload you
+can pass a custom data type as `payload` and implement the `Lapin.Message.Payload`
+protocol for your data type.
+
+Read the `Lapin.Message.Payload` protocol documentation to learn how to do this.
 
 ### Declaring broker configuration ###
 
@@ -302,7 +316,7 @@ discrepancies between the configuration and the broker state if there are any.
 
 ```elixir
 {:ok, pid} = Lapin.Connection.start_link([
-  module: MyApp.SomeWorker,
+  module: ExampleApp.SomeWorker,
   channels: [
     [
       role: :passive,
