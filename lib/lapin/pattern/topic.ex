@@ -7,6 +7,6 @@ defmodule Lapin.Pattern.Topic do
 
   use Lapin.Pattern
 
-  def exchange_type(_channel_config), do: :topic
-  def routing_key(channel_config), do: Keyword.get(channel_config, :routing_key, "")
+  def exchange_type(_channel), do: :topic
+  def routing_key(channel), do: channel.routing_key
 end

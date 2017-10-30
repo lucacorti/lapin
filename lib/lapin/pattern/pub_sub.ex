@@ -7,5 +7,5 @@ defmodule Lapin.Pattern.PubSub do
 
   use Lapin.Pattern
 
-  def exchange_type(_channel_config), do: :fanout
+  def exchange_type(_channel), do: :fanout
 end

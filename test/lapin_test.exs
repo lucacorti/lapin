@@ -11,6 +11,7 @@ defmodule LapinTest do
     %{
       exchange: exchange,
       queue: queue,
+      message: %Message{},
       producer: [
         module: LapinTest.HelloWorld,
         virtual_host: "local",
@@ -54,19 +55,19 @@ defmodule LapinTest do
 
   test "hello_world_producer_can_publish", ctx do
     {:ok, producer} = Connection.start_link(ctx.producer)
-    :ok = Lapin.Connection.publish(producer, ctx.exchange, "",  %Message{})
+    :ok = Lapin.Connection.publish(producer, ctx.exchange, "", ctx.message)
     :ok = Lapin.Connection.close(producer)
   end
 
   test "hello_world_consumer_cant_publish", ctx do
     {:ok, consumer} = Connection.start_link(ctx.consumer)
-    {:error, _} = Lapin.Connection.publish(consumer, ctx.exchange, "", %Message{})
+    {:error, _} = Lapin.Connection.publish(consumer, ctx.exchange, "", ctx.message)
     :ok = Lapin.Connection.close(consumer)
   end
 
   test "hello_world_passive_cant_publish", ctx do
     {:ok, passive} = Connection.start_link(ctx.passive)
-    {:error, _} = Lapin.Connection.publish(passive, ctx.exchange, "",  %Message{})
+    {:error, _} = Lapin.Connection.publish(passive, ctx.exchange, "", ctx.message)
     :ok = Lapin.Connection.close(passive)
   end
 end
