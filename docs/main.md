@@ -260,7 +260,7 @@ config :lapin, :connections, [
 ]
 ```
 
-Using the woker module implementation:
+Using the worker module implementation:
 
 ```elixir
 :ok = MyApp.SomeWorker.publish("some_exchange", "routing_key", %Lapin.Message{}, [])  
