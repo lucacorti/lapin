@@ -27,7 +27,7 @@ example:
 ```elixir
 config :lapin, :connections, [
   [
-    module: ExampleApp.SomeWorker
+    module: ExampleApp.Worker
     channels: [
       [
         role: :consumer,
@@ -47,7 +47,7 @@ config :lapin, :connections, [
 and define your worker module as follows:
 
 ```elixir
-defmodule ExampleApp.SomeWorker do
+defmodule ExampleApp.Worker do
   use Lapin.Connection
 end
 ```
@@ -57,7 +57,7 @@ run your application with `iex -S mix` and publish a message:
 
 ```elixir
 ...
-iex(1)> ExampleApp.SomeWorker.publish("exchange", "routing_key", %Lapin.Message{payload: "test"})
+iex(1)> ExampleApp.Worker.publish("exchange", "routing_key", %Lapin.Message{payload: "test"})
 [debug] Published %Lapin.Message{meta: %{content_type: nil, mandatory: false, persistent: false}, payload: ""} on %Lap
 in.Channel{amqp_channel: %AMQP.Channel{conn: %AMQP.Connection{pid: #PID<0.212.0>}, pid: #PID<0.221.0>}, config: [role: :producer, e
 xchange: "test_exchange", queue: "test_queue"], consumer_tag: nil, exchange: "test_exchange", pattern: Lapin.Pattern.Config, queue:
@@ -106,7 +106,7 @@ This is quick and easy way to start.
 `lib/myapp/some_worker.ex`:
 
 ```elixir
-defmodule ExampleApp.SomeWorker do
+defmodule ExampleApp.Worker do
   use Lapin.Connection
 end
 ```
@@ -116,7 +116,7 @@ end
 ```elixir
 config :lapin, :connections, [
   [
-    module: ExampleApp.SomeWorker,
+    module: ExampleApp.Worker,
     channels: [
       [
         role: :consumer,
@@ -152,7 +152,7 @@ In fact `Lapin` bundles a few `Lapin.Pattern` implementations for the
 `lib/myapp/some_pattern.ex`:
 
 ```elixir
-defmodule ExampleApp.SomePattern do
+defmodule ExampleApp.Pattern do
   use Lapin.Pattern
 
   def exchange_type(_channel), do: :fanout,
@@ -166,16 +166,16 @@ end
 ```elixir
 config :lapin, :connections, [
   [
-    module: ExampleApp.SomeWorker
+    module: ExampleApp.Worker
     channels: [
       [
-        pattern: ExampleApp.SomePattern,
+        pattern: ExampleApp.Pattern,
         role: :consumer,
         exchange: "some_exchange",
         queue: "some_queue"
       ],
       [
-        pattern: ExampleApp.SomePattern,
+        pattern: ExampleApp.Pattern,
         role: :producer,
         exchange: "some_exchange",
         queue: "some_queue"
@@ -204,7 +204,7 @@ You can handle received messages by overriding the `Lapin.Connection.handle_deli
 callback. The default implementation simply logs messages and returns `:ok`.
 
 ```elixir
-defmodule ExampleApp.SomeWorker do
+defmodule ExampleApp.Worker do
   use Lapin.Connection
 
   def handle_deliver(channel, message) do
@@ -219,7 +219,7 @@ worker module, to dispatch messages to different handling logic you can pattern
 match on the `Channel.config` map which contains message routing information.
 
 ```elixir
-defmodule ExampleApp.SomeWorker do
+defmodule ExampleApp.Worker do
   use Lapin.Connection
 
   def handle_deliver(%Channel{exchange: "a", queue: "b"} = channel, message) do
@@ -255,7 +255,7 @@ a connection.
 ```elixir
 config :lapin, :connections, [
   [
-    module: ExampleApp.SomeWorker,
+    module: ExampleApp.Worker,
     channels: [
       [
         role: :producer,
@@ -270,24 +270,24 @@ config :lapin, :connections, [
 Using the worker module implementation:
 
 ```elixir
-:ok = ExampleApp.SomeWorker.publish("some_exchange", "routing_key", %Lapin.Message{}, [])  
+:ok = ExampleApp.Worker.publish("some_exchange", "routing_key", %Lapin.Message{}, [])  
 ```
 
 Via `Lapin.Connection` by passing the worker module as the connection:
 
 ```elixir
-:ok = Lapin.Connection.publish(ExampleApp.SomeWorker, "some_exchange", "routing_key", %Lapin.Message{}, [])
+:ok = Lapin.Connection.publish(ExampleApp.Worker, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```
 
 If you are starting a `Lapin.Connection` manually, you can also pass the connection pid:
 
 ```elixir
 {:ok, pid} = Lapin.Connection.start_link([
-  module: ExampleApp.SomeWorker,
+  module: ExampleApp.Worker,
   channels: [
     [
       role: :producer,
-      pattern: ExampleApp.SomePattern,
+      pattern: ExampleApp.Pattern,
       exchange: "some_exchange",
       queue: "some_queue"
     ]
@@ -316,7 +316,7 @@ discrepancies between the configuration and the broker state if there are any.
 
 ```elixir
 {:ok, pid} = Lapin.Connection.start_link([
-  module: ExampleApp.SomeWorker,
+  module: ExampleApp.Worker,
   channels: [
     [
       role: :passive,
