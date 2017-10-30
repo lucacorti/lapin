@@ -263,8 +263,7 @@ defmodule Lapin.Connection do
     {:stop, :normal, state}
   end
 
-  def handle_info({:basic_deliver, payload, %{consumer_tag: consumer_tag} = meta},
-  %{channels: channels, module: module} = state) do
+  def handle_info({:basic_deliver, payload, %{consumer_tag: consumer_tag} = meta}, %{channels: channels, module: module} = state) do
     message = %Message{meta: meta, payload: payload}
     with channel when not is_nil(channel) <- Channel.get(channels, consumer_tag) do
       spawn(fn -> consume(module, channel, meta, payload) end)
@@ -291,7 +290,7 @@ defmodule Lapin.Connection do
         Basic.reject(channel.amqp_channel, delivery_tag, requeue: false)
         Logger.debug fn -> "Rejected message #{delivery_tag}: #{inspect reason}" end
       reason ->
-        Basic.reject(channel.amqp_channel, delivery_tag, requeue: true)
+        Basic.reject(channel.amqp_channel, delivery_tag, requeue: not redelivered)
         Logger.debug fn -> "Requeued message #{delivery_tag}: #{inspect reason}" end
     end
 
