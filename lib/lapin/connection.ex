@@ -300,8 +300,8 @@ defmodule Lapin.Connection do
         Logger.error "Rejected message #{delivery_tag}: #{inspect exception}"
   end
 
-  defp consume_ack(true = _consumer_ack, channel, delivery_tag) do
-    if Basic.ack(channel.amqp_channel, delivery_tag) do
+  defp consume_ack(true = _consumer_ack, amqp_channel, delivery_tag) do
+    if Basic.ack(amqp_channel, delivery_tag) do
       Logger.debug fn -> "Consumed message #{delivery_tag} successfully, ACK sent" end
       :ok
     else
@@ -310,7 +310,7 @@ defmodule Lapin.Connection do
     end
   end
 
-  defp consume_ack(false = _consumer_ack, _channel, delivery_tag) do
+  defp consume_ack(false = _consumer_ack, _amqp_channel, delivery_tag) do
     Logger.debug fn -> "Consumed message #{delivery_tag}, ACK not required" end
     :ok
   end
