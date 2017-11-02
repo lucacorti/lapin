@@ -108,7 +108,7 @@ defmodule Lapin.Connection do
 
   defmacro __using__(_) do
     quote do
-      alias Lapin.{Channel, Message}
+      alias Lapin.Message
 
       @behaviour Lapin.Connection
 
@@ -123,7 +123,7 @@ defmodule Lapin.Connection do
       defoverridable Lapin.Connection
 
       def publish(exchange, routing_key, message, options \\ []) do
-        Conn.publish(__MODULE__, exchange, routing_key, message, options)
+        Lapin.Connection.publish(__MODULE__, exchange, routing_key, message, options)
       end
     end
   end
