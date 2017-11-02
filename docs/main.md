@@ -57,11 +57,11 @@ run your application with `iex -S mix` and publish a message:
 
 ```elixir
 ...
-iex(1)> ExampleApp.Worker.publish("exchange", "routing_key", %Lapin.Message{payload: "test"})
-[debug] Published %Lapin.Message{meta: %{content_type: nil, mandatory: false, persistent: false}, payload: ""} on %Lap
+iex(1)> ExampleApp.Worker.publish("some_exchange", "routing_key", "payload")
+[debug] Published %Lapin.Message{meta: %{content_type: nil, mandatory: false, persistent: false}, payload: "payload"} on %Lap
 in.Channel{amqp_channel: %AMQP.Channel{conn: %AMQP.Connection{pid: #PID<0.212.0>}, pid: #PID<0.221.0>}, config: [role: :producer, e
-xchange: "test_exchange", queue: "test_queue"], consumer_tag: nil, exchange: "test_exchange", pattern: Lapin.Pattern.Config, queue:
- "test_queue", role: :producer, routing_key: ""}
+xchange: "test_exchange", queue: "test_queue"], consumer_tag: nil, exchange: "some_exchange", pattern: Lapin.Pattern.Config, queue:
+ "some_queue", role: :producer, routing_key: "routing_key"}
 :ok
 [debug] Consuming message 1
 [debug] Consumed message 1 successfully, ACK sent
@@ -103,7 +103,7 @@ implementation.
 
 This is quick and easy way to start.
 
-`lib/myapp/some_worker.ex`:
+`lib/example_app/some_worker.ex`:
 
 ```elixir
 defmodule ExampleApp.Worker do
@@ -149,7 +149,7 @@ and specifying it in your in your channel configuration under the *pattern* key.
 In fact `Lapin` bundles a few `Lapin.Pattern` implementations for the
 *RabbitMQ* [tutorials patterns](https://www.rabbitmq.org/getstarted.html).
 
-`lib/myapp/some_pattern.ex`:
+`lib/example_app/some_pattern.ex`:
 
 ```elixir
 defmodule ExampleApp.Pattern do
@@ -234,10 +234,6 @@ defmodule ExampleApp.Worker do
 end
 ```
 
-The `Lapin.Connection.payload_for/2` callback allows you to perform message
-payload decoding into custom data types. Read the `Lapin.Message.Payload`
-protocol documentation to know how to implement your decoding for your data types.
-
 Messages are considered to be successfully consumed if the
 `Lapin.Connection.handle_deliver/2` callback returns `:ok`. See the callback
 documentation for a complete list of possible values you can return to signal
@@ -270,13 +266,13 @@ config :lapin, :connections, [
 Using the worker module implementation:
 
 ```elixir
-:ok = ExampleApp.Worker.publish("some_exchange", "routing_key", %Lapin.Message{}, [])  
+:ok = ExampleApp.Worker.publish("some_exchange", "routing_key", "payload", [])  
 ```
 
 Via `Lapin.Connection` by passing the worker module as the connection:
 
 ```elixir
-:ok = Lapin.Connection.publish(ExampleApp.Worker, "some_exchange", "routing_key", %Lapin.Message{}, [])
+:ok = Lapin.Connection.publish(ExampleApp.Worker, "some_exchange", "routing_key", "payload", [])
 ```
 
 If you are starting a `Lapin.Connection` manually, you can also pass the connection pid:
@@ -296,13 +292,6 @@ If you are starting a `Lapin.Connection` manually, you can also pass the connect
 
 :ok = Lapin.Connection.publish(pid, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```
-
-Message payload is assumed to be binary by default, but Lapin can handle message
-encoding and decoding. To implement automatic encoding of the message payload you
-can pass a custom data type as `payload` and implement the `Lapin.Message.Payload`
-protocol for your data type.
-
-Read the `Lapin.Message.Payload` protocol documentation to learn how to do this.
 
 ### Declaring broker configuration ###
 
@@ -328,3 +317,21 @@ discrepancies between the configuration and the broker state if there are any.
 
 {:error, message} = Lapin.Connection.publish(pid, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```
+
+### Message payload encoding ###
+
+Message payload is assumed to be `binary` by default, and is sent and received
+unaltered by your code. However, Lapin can handle message encoding and decoding
+for you.
+
+Automatic encoding of the message payload is done by passing a data type other
+than binary as the `payload` argument to the publish methods. And by providing
+an implementation of the `Lapin.Message.Payload` protocol for your data type.
+
+When consuming, the `Lapin.Connection.payload_for/2` callback of the worker module
+allows you to return an instance of the data type you want to perform message
+decoding into. Again, an implementation of the `Lapin.Message.Payload` protocol
+is required for your custom `payload` data type (e.g. a struct).
+
+The `Lapin.Message.Payload` protocol documentation explains how to implement
+the required functions, and provides an example JSON to struct implementation.
