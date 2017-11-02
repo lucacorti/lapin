@@ -71,6 +71,8 @@ defmodule Lapin.Pattern do
 
   defmacro __using__([]) do
     quote do
+      alias Lapin.Channel
+
       @behaviour Lapin.Pattern
 
       @consumer_ack false
@@ -84,16 +86,16 @@ defmodule Lapin.Pattern do
       @queue_durable true
       @routing_key ""
 
-      def consumer_ack(channel), do: Keyword.get(channel.config, :consumer_ack, @consumer_ack)
-      def consumer_prefetch(channel), do: Keyword.get(channel.config, :consumer_prefetch, @consumer_prefetch)
-      def exchange_durable(channel), do: Keyword.get(channel.config, :exchange_durable, @exchange_durable)
-      def exchange_type(channel), do: Keyword.get(channel.config, :exchange_type, @exchange_type)
-      def publisher_confirm(channel), do: Keyword.get(channel.config, :publisher_confirm, @publisher_confirm)
-      def publisher_mandatory(channel), do: Keyword.get(channel.config, :publisher_mandatory, @publisher_mandatory)
-      def publisher_persistent(channel), do: Keyword.get(channel.config, :publisher_persistent, @publisher_persistent)
-      def queue_arguments(channel), do: Keyword.get(channel.config, :queue_arguments, @queue_arguments)
-      def queue_durable(channel), do: Keyword.get(channel.config, :queue_durable, @queue_durable)
-      def routing_key(channel), do: Keyword.get(channel.config, :routing_key, @routing_key)
+      def consumer_ack(%Channel{config: config}), do: Keyword.get(config, :consumer_ack, @consumer_ack)
+      def consumer_prefetch(%Channel{config: config}), do: Keyword.get(config, :consumer_prefetch, @consumer_prefetch)
+      def exchange_durable(%Channel{config: config}), do: Keyword.get(config, :exchange_durable, @exchange_durable)
+      def exchange_type(%Channel{config: config}), do: Keyword.get(config, :exchange_type, @exchange_type)
+      def publisher_confirm(%Channel{config: config}), do: Keyword.get(config, :publisher_confirm, @publisher_confirm)
+      def publisher_mandatory(%Channel{config: config}), do: Keyword.get(config, :publisher_mandatory, @publisher_mandatory)
+      def publisher_persistent(%Channel{config: config}), do: Keyword.get(config, :publisher_persistent, @publisher_persistent)
+      def queue_arguments(%Channel{config: config}), do: Keyword.get(config, :queue_arguments, @queue_arguments)
+      def queue_durable(%Channel{config: config}), do: Keyword.get(config, :queue_durable, @queue_durable)
+      def routing_key(%Channel{config: config}), do: Keyword.get(config, :routing_key, @routing_key)
 
       defoverridable Lapin.Pattern
     end
