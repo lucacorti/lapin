@@ -15,8 +15,8 @@ defprotocol Lapin.Message.Payload do
   ```elixir
   defimpl Lapin.Message.Payload, for: Example.Payload do
     def content_type(_payload), do: "application/json"
-    def encode(payload), do: Poison.encode!(payload)
-    def decode_into(payload, data), do: Poison.decode!(data, as: payload)
+    def encode(payload), do: Poison.encode(payload)
+    def decode_into(payload, data), do: Poison.decode(data, as: payload)
   end
   ```
 
@@ -25,12 +25,12 @@ defprotocol Lapin.Message.Payload do
 
   Lapin will automatically encode and set the `content-type` property on publish.
 
-  To decode messages before consuming, implement the `payload_type/2` callback
+  To decode messages before consuming, implement the `payload_for/2` callback
   of `Lapin.Connection` and return an instance of the payload to decode into.
 
   ```elixir
   defmodule Example.Connection do
-    def payload_type(_channel, _message), do: %Example.Payload{}
+    def payload_for(_channel, _message), do: %Example.Payload{}
   end
   ```
 

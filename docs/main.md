@@ -234,7 +234,7 @@ defmodule ExampleApp.Worker do
 end
 ```
 
-The `Lapin.Connection.payload_type/2` callback allows you to perform message
+The `Lapin.Connection.payload_for/2` callback allows you to perform message
 payload decoding into custom data types. Read the `Lapin.Message.Payload`
 protocol documentation to know how to implement your decoding for your data types.
 

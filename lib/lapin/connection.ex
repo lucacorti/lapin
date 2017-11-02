@@ -104,7 +104,7 @@ defmodule Lapin.Connection do
   A `Lapin.Message.Payload` implementation must be provided for this type. The
   default implementation leaves the payload unaltered.
   """
-  @callback payload_type(Channel.t, Message.t) :: Message.Payload.t
+  @callback payload_for(Channel.t, Message.t) :: Message.Payload.t
 
   defmacro __using__(_) do
     quote do
@@ -118,7 +118,7 @@ defmodule Lapin.Connection do
       def handle_deliver(_channel, _message), do: :ok
       def handle_publish(_channel, _message), do: :ok
       def handle_return(_channel, _message), do: :ok
-      def payload_type(_channel, _message), do: <<>>
+      def payload_for(_channel, _message), do: <<>>
 
       defoverridable Lapin.Connection
 
@@ -277,10 +277,10 @@ defmodule Lapin.Connection do
   defp consume(module, %Channel{pattern: pattern} = channel, %{delivery_tag: delivery_tag, redelivered: redelivered} = meta, payload) do
     message = %Message{meta: meta, payload: payload}
     with consumer_ack <- pattern.consumer_ack(channel),
-         payload_type <- module.payload_type(channel, message),
-         content_type <- Message.Payload.content_type(payload_type),
+         payload_for <- module.payload_for(channel, message),
+         content_type <- Message.Payload.content_type(payload_for),
          message <- %Message{message | meta: Map.put(meta, :content_type, content_type)},
-         {:ok, payload} <- Message.Payload.decode_into(payload, payload_type),
+         {:ok, payload} <- Message.Payload.decode_into(payload_for, payload),
          message <- %Message{message | payload: payload},
          :ok <- module.handle_deliver(channel, message) do
       Logger.debug fn -> "Consuming message #{delivery_tag}" end
