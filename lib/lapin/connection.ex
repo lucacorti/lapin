@@ -178,7 +178,7 @@ defmodule Lapin.Connection do
          {:ok, payload} <- Message.Payload.encode(payload),
          :ok <- Basic.publish(amqp_channel, exchange, routing_key, payload, options) do
       message = %Message{meta: Enum.into(options, meta), payload: payload}
-      if not pattern.publisher_confirm(channel) or Confirm.wait_for_confirms(channel) do
+      if not pattern.publisher_confirm(channel) or Confirm.wait_for_confirms(amqp_channel) do
         Logger.debug fn -> "Published #{inspect message} on #{inspect channel}" end
         {:reply, module.handle_publish(channel, message), state}
       else
