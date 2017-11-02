@@ -108,7 +108,7 @@ defmodule Lapin.Connection do
 
   defmacro __using__(_) do
     quote do
-      alias Lapin.Message
+      alias Lapin.{Channel, Message}
 
       @behaviour Lapin.Connection
 
