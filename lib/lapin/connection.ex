@@ -160,12 +160,12 @@ defmodule Lapin.Connection do
   @doc """
   Publishes a message to the specified exchange with the given routing_key
   """
-  @spec publish(connection :: t, Channel.exchange, Channel.routing_key, Message.t, options :: Keyword.t) :: on_callback
-  def publish(connection, exchange, routing_key, message, options \\ []) do
-    GenServer.call(connection, {:publish, exchange, routing_key, message, options})
+  @spec publish(connection :: t, Channel.exchange, Channel.routing_key, Message.Payload.t, options :: Keyword.t) :: on_callback
+  def publish(connection, exchange, routing_key, payload, options \\ []) do
+    GenServer.call(connection, {:publish, exchange, routing_key, payload, options})
   end
 
-  def handle_call({:publish, exchange, routing_key, %Message{meta: meta} = message, options}, _from, %{channels: channels, module: module} = state) do
+  def handle_call({:publish, exchange, routing_key, payload, options}, _from, %{channels: channels, module: module} = state) do
     with channel when not is_nil(channel) <- Channel.get(channels, exchange, routing_key),
          %Channel{pattern: pattern} <- channel,
          :producer <- channel.role,
@@ -173,12 +173,12 @@ defmodule Lapin.Connection do
          mandatory <- pattern.publisher_mandatory(channel),
          persistent <- pattern.publisher_persistent(channel),
          options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
-         content_type <- Message.Payload.content_type(message.payload),
-         meta <- Map.put(meta, :content_type, content_type),
-         {:ok, payload} <- Message.Payload.encode(message.payload),
+         content_type <- Message.Payload.content_type(payload),
+         meta <- %{content_type: content_type},
+         {:ok, payload} <- Message.Payload.encode(payload),
          :ok <- Basic.publish(amqp_channel, exchange, routing_key, payload, options) do
+      message = %Message{meta: Enum.into(options, meta), payload: payload}
       if not pattern.publisher_confirm(channel) or Confirm.wait_for_confirms(channel) do
-        message = %Message{message | meta: Enum.into(options, meta)}
         Logger.debug fn -> "Published #{inspect message} on #{inspect channel}" end
         {:reply, module.handle_publish(channel, message), state}
       else

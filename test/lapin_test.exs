@@ -11,7 +11,7 @@ defmodule LapinTest do
     %{
       exchange: exchange,
       queue: queue,
-      message: %Message{},
+      message: "",
       producer: [
         module: LapinTest.HelloWorld,
         virtual_host: "local",
