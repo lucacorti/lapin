@@ -2,7 +2,7 @@ defmodule LapinTest do
   use ExUnit.Case
   doctest Lapin
 
-  alias Lapin.{Connection, Message}
+  alias Lapin.Connection
 
   setup_all do
     exchange = "test_exchange"
