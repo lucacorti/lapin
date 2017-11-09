@@ -118,10 +118,10 @@ defmodule Lapin.Channel do
   @doc """
   Find channel by exchange and routing key
   """
-  @spec get([t], exchange, routing_key) :: t
-  def get(channels, exchange, routing_key) do
+  @spec get([t], exchange, routing_key, role) :: t
+  def get(channels, exchange, routing_key, role) do
     Enum.find(channels, fn channel ->
-      exchange == channel.exchange && routing_key == channel.routing_key
+      exchange == channel.exchange && routing_key == channel.routing_key && role == channel.role
     end)
   end
 
