@@ -150,7 +150,7 @@ defmodule Lapin.Connection do
   @doc """
   Closes the connection
   """
-  @spec close(connection :: t) :: nil
+  @spec close(connection :: t) :: GenServer.on_callback
   def close(connection), do: GenServer.stop(connection)
 
   def terminate(_reason, %{connection: connection}) do
