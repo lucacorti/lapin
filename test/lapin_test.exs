@@ -12,7 +12,7 @@ defmodule LapinTest do
       message: "",
       producer: [
         module: LapinTest.HelloWorld,
-        virtual_host: "local",
+        virtual_host: "/",
         channels: [
           [
             role: :producer,
@@ -23,7 +23,7 @@ defmodule LapinTest do
       ],
       consumer: [
         module: LapinTest.HelloWorld,
-        virtual_host: "local",
+        virtual_host: "/",
         channels: [
           [
             role: :consumer,
@@ -34,7 +34,7 @@ defmodule LapinTest do
       ],
       passive: [
         module: LapinTest.HelloWorld,
-        virtual_host: "local",
+        virtual_host: "/",
         channels: [
           [
             role: :passive,
