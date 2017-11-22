@@ -42,7 +42,7 @@ defprotocol Lapin.Message.Payload do
   @type t :: term
 
   @typedoc "MIME content-type as defined by RFC 2045"
-  @type content_type :: String.t
+  @type content_type :: String.t | nil
 
   @typedoc "Encode function return values"
   @type on_encode :: {:ok, binary} | {:error, term}
