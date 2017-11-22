@@ -12,7 +12,7 @@ defmodule Lapin.Connection do
   to publish messages on the connection configured for the implementing module.
   """
 
-  use GenServer
+  use Elixir.Connection
 
   use AMQP
 
@@ -128,8 +128,8 @@ defmodule Lapin.Connection do
     end
   end
 
-  @default_reconnection_delay 5_000
-  @connection_default_params [connecion_timeout: @default_reconnection_delay]
+  @backoff 1_000
+  @connection_default_params [connecion_timeout: @backoff]
   @default_rabbitmq_host 'localhost'
   @default_rabbitmq_port 5672
 
@@ -139,12 +139,11 @@ defmodule Lapin.Connection do
   @spec start_link(config, options :: GenServer.options) :: GenServer.on_start
   def start_link(configuration, options \\ []) do
     {:ok, configuration} = cleanup_configuration(configuration)
-    GenServer.start_link(__MODULE__, configuration, options)
+    Elixir.Connection.start_link(__MODULE__, configuration, options)
   end
 
   def init(configuration) do
-    {:ok, module, connection, channels} = connect(configuration)
-    {:ok, %{channels: channels, connection: connection, module: module, configuration: configuration}}
+    {:connect, :init,  %{configuration: configuration, channels: [], connection: nil, module: nil}}
   end
 
   @doc """
@@ -153,8 +152,9 @@ defmodule Lapin.Connection do
   @spec close(connection :: t) :: GenServer.on_callback
   def close(connection), do: GenServer.stop(connection)
 
+  def terminate(_reason, %{connection: nil}), do: :ok
   def terminate(_reason, %{connection: connection}) do
-    Connection.close(connection)
+    AMQP.Connection.close(connection)
   end
 
   @doc """
@@ -162,7 +162,7 @@ defmodule Lapin.Connection do
   """
   @spec publish(connection :: t, Channel.exchange, Channel.routing_key, Message.Payload.t, options :: Keyword.t) :: on_callback
   def publish(connection, exchange, routing_key, payload, options \\ []) do
-    GenServer.call(connection, {:publish, exchange, routing_key, payload, options})
+    Elixir.Connection.call(connection, {:publish, exchange, routing_key, payload, options})
   end
 
   def handle_call({:publish, exchange, routing_key, payload, options}, _from, %{channels: channels, module: module} = state) do
@@ -314,17 +314,18 @@ defmodule Lapin.Connection do
     :ok
   end
 
-  defp connect(configuration) do
-    with {module, configuration} <- Keyword.pop(configuration, :module),
-         {channels, configuration} <- Keyword.pop(configuration, :channels, []),
+  def connect(_info, %{configuration: configuration} = state) do
+    with module <- Keyword.get(configuration, :module),
+         channels <- Keyword.get(configuration, :channels, []),
          configuration <- Keyword.merge(@connection_default_params, configuration),
-         {:ok, connection} <- Connection.open(configuration) do
+         {:ok, connection} <- AMQP.Connection.open(configuration),
+         channels <- Enum.map(channels, &Channel.create(connection, &1)) do
       Process.monitor(connection.pid)
-      {:ok, module, connection, Enum.map(channels, &Channel.create(connection, &1))}
+      {:ok, %{state | module: module, channels: channels, connection: connection}}
     else
-      {:error, _} ->
-        :timer.sleep(@default_reconnection_delay)
-        connect(configuration)
+      {:error, error} ->
+        Logger.error fn -> "Connection error: #{error}, backing off for #{@backoff}" end
+        {:backoff, @backoff, state}
     end
   end
 
