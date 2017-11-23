@@ -12,9 +12,7 @@ defmodule Lapin.Connection do
   to publish messages on the connection configured for the implementing module.
   """
 
-  use Elixir.Connection
-
-  use AMQP
+  use Connection
 
   require Logger
 
@@ -27,6 +25,7 @@ defmodule Lapin.Connection do
 
   The following keys are supported:
     - module: module using the `Lapin.Connection` behaviour
+    - uri: AMQP uri, takes precedence over individual parameters below (String.t | URI.t)
     - host: broker hostname (string | charlist), *default: 'localhost'*
     - port: broker port (string | integer), *default: 5672*
     - virtual_host: broker vhost (string), *default: ""*
@@ -139,7 +138,7 @@ defmodule Lapin.Connection do
   @spec start_link(config, options :: GenServer.options) :: GenServer.on_start
   def start_link(configuration, options \\ []) do
     {:ok, configuration} = cleanup_configuration(configuration)
-    Elixir.Connection.start_link(__MODULE__, configuration, options)
+    Connection.start_link(__MODULE__, configuration, options)
   end
 
   def init(configuration) do
@@ -162,7 +161,11 @@ defmodule Lapin.Connection do
   """
   @spec publish(connection :: t, Channel.exchange, Channel.routing_key, Message.Payload.t, options :: Keyword.t) :: on_callback
   def publish(connection, exchange, routing_key, payload, options \\ []) do
-    Elixir.Connection.call(connection, {:publish, exchange, routing_key, payload, options})
+    Connection.call(connection, {:publish, exchange, routing_key, payload, options})
+  end
+
+  def handle_call({:publish, _exchange, _routing_key, _payload, _options}, _from, %{connection: nil} = state) do
+    {:reply, {:error, :not_connected}, state}
   end
 
   def handle_call({:publish, exchange, routing_key, payload, options}, _from, %{channels: channels, module: module} = state) do
@@ -175,9 +178,9 @@ defmodule Lapin.Connection do
          content_type <- Message.Payload.content_type(payload),
          meta <- %{content_type: content_type},
          {:ok, payload} <- Message.Payload.encode(payload),
-         :ok <- Basic.publish(amqp_channel, exchange, routing_key, payload, options) do
+         :ok <- AMQP.Basic.publish(amqp_channel, exchange, routing_key, payload, options) do
       message = %Message{meta: Enum.into(options, meta), payload: payload}
-      if not pattern.publisher_confirm(channel) or Confirm.wait_for_confirms(amqp_channel) do
+      if not pattern.publisher_confirm(channel) or AMQP.Confirm.wait_for_confirms(amqp_channel) do
         Logger.debug fn -> "Published #{inspect message} on #{inspect channel}" end
         {:reply, module.handle_publish(channel, message), state}
       else
@@ -286,21 +289,21 @@ defmodule Lapin.Connection do
       consume_ack(consumer_ack, channel.amqp_channel, delivery_tag)
     else
       {:reject, reason} ->
-        Basic.reject(channel.amqp_channel, delivery_tag, requeue: false)
+        AMQP.Basic.reject(channel.amqp_channel, delivery_tag, requeue: false)
         Logger.debug fn -> "Rejected message #{delivery_tag}: #{inspect reason}" end
       reason ->
-        Basic.reject(channel.amqp_channel, delivery_tag, requeue: not redelivered)
+        AMQP.Basic.reject(channel.amqp_channel, delivery_tag, requeue: not redelivered)
         Logger.debug fn -> "Requeued message #{delivery_tag}: #{inspect reason}" end
     end
 
     rescue
       exception ->
-        Basic.reject(channel.amqp_channel, delivery_tag, requeue: not redelivered)
+        AMQP.Basic.reject(channel.amqp_channel, delivery_tag, requeue: not redelivered)
         Logger.error "Rejected message #{delivery_tag}: #{inspect exception}"
   end
 
   defp consume_ack(true = _consumer_ack, amqp_channel, delivery_tag) do
-    if Basic.ack(amqp_channel, delivery_tag) do
+    if AMQP.Basic.ack(amqp_channel, delivery_tag) do
       Logger.debug fn -> "Consumed message #{delivery_tag} successfully, ACK sent" end
       :ok
     else
@@ -324,13 +327,17 @@ defmodule Lapin.Connection do
       {:ok, %{state | module: module, channels: channels, connection: connection}}
     else
       {:error, error} ->
-        Logger.error fn -> "Connection error: #{error}, backing off for #{@backoff}" end
+        Logger.error fn -> "Connection error: #{error} for #{inspect configuration}, backing off for #{@backoff}" end
         {:backoff, @backoff, state}
     end
   end
 
   defp cleanup_configuration(configuration) do
     with :ok <- check_mandatory_params(configuration, [:module]),
+         {uri, configuration} <- Keyword.get_and_update(configuration, :uri, fn uri ->
+           {map_uri(uri), :pop}
+         end),
+         configuration <- Keyword.merge(configuration, uri),
          {_, configuration} <- Keyword.get_and_update(configuration, :host, fn host ->
            {host, map_host(host)}
          end),
@@ -352,6 +359,42 @@ defmodule Lapin.Connection do
         {:error, error}
     end
   end
+
+  defp map_uri(nil), do: []
+
+  defp map_uri(uri) when is_binary(uri) do
+    uri
+    |> URI.parse()
+    |> map_uri()
+  end
+
+  defp map_uri(%URI{} = uri) do
+    uri
+    |> Map.from_struct()
+    |> Enum.to_list()
+    |> uri_to_list()
+  end
+
+  defp uri_to_list(uri) when is_list(uri) do
+    with {vhost, uri} <- Keyword.pop(uri, :path),
+         {userinfo, uri} <- Keyword.pop(uri, :userinfo),
+         uri <- Keyword.drop(uri, [:authority, :query, :fragment, :scheme]),
+         [username, password] <- map_userinfo(userinfo) do
+      uri
+      |> Keyword.put(:vhost, vhost)
+      |> Keyword.put(:username, username)
+      |> Keyword.put(:password, password)
+      |> Enum.reject(fn {_k, v} -> v === nil end)
+    end
+  end
+
+  defp map_userinfo(userinfo) when is_binary(userinfo) do
+    parts = userinfo
+    |> String.split(":", parts: 2)
+    [Enum.at(parts, 0), Enum.at(parts, 1)]
+  end
+
+  defp map_userinfo(_), do: [nil, nil]
 
   defp map_auth_mechanism(:amqplain), do: &:amqp_auth_mechanisms.amqplain/3
   defp map_auth_mechanism(:external), do: &:amqp_auth_mechanisms.external/3
