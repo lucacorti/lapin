@@ -47,6 +47,17 @@ defmodule LapinTest do
             queue: queue
           ]
         ]
+      ],
+      bad_host: [
+        module: LapinTest.HelloWorld,
+        uri: "amqp://thisisnotthedefault:nopass@nohosthere:9999",
+        channels: [
+          [
+            role: :producer,
+            exchange: exchange,
+            queue: queue
+          ]
+        ]
       ]
     }
   end
@@ -67,5 +78,11 @@ defmodule LapinTest do
     {:ok, passive} = Lapin.Connection.start_link(ctx.passive)
     {:error, _} = Lapin.Connection.publish(passive, ctx.exchange, "", ctx.message)
     :ok = Lapin.Connection.close(passive)
+  end
+
+  test "hello_world_bad_host_not_connected_error_on_publish", ctx do
+    {:ok, bad_host} = Lapin.Connection.start_link(ctx.bad_host)
+    {:error, :not_connected} = Lapin.Connection.publish(bad_host, ctx.exchange, "", ctx.message)
+    :ok = Lapin.Connection.close(bad_host)
   end
 end

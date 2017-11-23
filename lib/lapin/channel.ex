@@ -3,8 +3,6 @@ defmodule Lapin.Channel do
   Lapin Channel handling
   """
 
-  use AMQP
-
   require Logger
 
   import Lapin.Utils, only: [check_mandatory_params: 2]
@@ -86,10 +84,10 @@ defmodule Lapin.Channel do
          exchange_durable <- pattern.exchange_durable(channel),
          queue_arguments <- pattern.queue_arguments(channel),
          queue_durable <- pattern.queue_durable(channel),
-         {:ok, amqp_channel} <- Channel.open(connection),
-         :ok <- Exchange.declare(amqp_channel, exchange, exchange_type, durable: exchange_durable),
-         {:ok, _info} <- Queue.declare(amqp_channel, queue, durable: queue_durable, arguments: queue_arguments),
-         :ok <- Queue.bind(amqp_channel, queue, exchange, routing_key: routing_key),
+         {:ok, amqp_channel} <- AMQP.Channel.open(connection),
+         :ok <- AMQP.Exchange.declare(amqp_channel, exchange, exchange_type, durable: exchange_durable),
+         {:ok, _info} <- AMQP.Queue.declare(amqp_channel, queue, durable: queue_durable, arguments: queue_arguments),
+         :ok <- AMQP.Queue.bind(amqp_channel, queue, exchange, routing_key: routing_key),
          {:ok, channel} <- setup(%{channel | amqp_channel: amqp_channel, pattern: pattern, routing_key: routing_key}) do
       channel
     else
@@ -129,7 +127,7 @@ defmodule Lapin.Channel do
     with consumer_prefetch <- pattern.consumer_prefetch(channel),
          consumer_ack <- pattern.consumer_ack(channel),
          :ok <- set_consumer_prefetch(amqp_channel, consumer_prefetch),
-         {:ok, consumer_tag} = Basic.consume(amqp_channel, queue, nil, no_ack: not consumer_ack),
+         {:ok, consumer_tag} = AMQP.Basic.consume(amqp_channel, queue, nil, no_ack: not consumer_ack),
          channel <- %{channel | consumer_tag: consumer_tag} do
       Logger.debug fn -> "Consumer '#{consumer_tag}' bound to queue '#{queue}'" end
       {:ok, channel}
@@ -155,13 +153,13 @@ defmodule Lapin.Channel do
 
   defp set_consumer_prefetch(_amqp_channel, nil = _consumer_prefetch), do: :ok
   defp set_consumer_prefetch(amqp_channel, consumer_prefetch) do
-    Basic.qos(amqp_channel, prefetch_count: consumer_prefetch)
+    AMQP.Basic.qos(amqp_channel, prefetch_count: consumer_prefetch)
   end
 
   defp set_publisher_confirm(_amqp_channel, false = _publisher_confirm), do: :ok
   defp set_publisher_confirm(amqp_channel, true = _publisher_confirm) do
-    with :ok <- Confirm.select(amqp_channel),
-         :ok <- Basic.return(amqp_channel, self()) do
+    with :ok <- AMQP.Confirm.select(amqp_channel),
+         :ok <- AMQP.Basic.return(amqp_channel, self()) do
       :ok
     else
       error ->
