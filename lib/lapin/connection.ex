@@ -25,7 +25,7 @@ defmodule Lapin.Connection do
 
   The following keys are supported:
     - module: module using the `Lapin.Connection` behaviour
-    - uri: AMQP uri, takes precedence over individual parameters below (String.t | URI.t)
+    - uri: AMQP URI (String.t | URI.t)
     - host: broker hostname (string | charlist), *default: 'localhost'*
     - port: broker port (string | integer), *default: 5672*
     - virtual_host: broker vhost (string), *default: ""*
