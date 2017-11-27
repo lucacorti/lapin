@@ -344,6 +344,9 @@ defmodule Lapin.Connection do
          {_, configuration} <- Keyword.get_and_update(configuration, :port, fn port ->
            {port, map_port(port)}
          end),
+         {_, configuration} <- Keyword.get_and_update(configuration, :virtual_host, fn vhost ->
+           {vhost, map_vhost(vhost)}
+         end),
          {_, configuration} = Keyword.get_and_update(configuration, :auth_mechanisms, fn
            mechanisms when is_list(mechanisms) ->
              {mechanisms, Enum.map(mechanisms, &map_auth_mechanism(&1))}
@@ -376,12 +379,12 @@ defmodule Lapin.Connection do
   end
 
   defp uri_to_list(uri) when is_list(uri) do
-    with {vhost, uri} <- Keyword.pop(uri, :path),
+    with {path, uri} <- Keyword.pop(uri, :path),
          {userinfo, uri} <- Keyword.pop(uri, :userinfo),
          uri <- Keyword.drop(uri, [:authority, :query, :fragment, :scheme]),
          [username, password] <- map_userinfo(userinfo) do
       uri
-      |> Keyword.put(:vhost, vhost)
+      |> Keyword.put(:virtual_host, map_vhost(path))
       |> Keyword.put(:username, username)
       |> Keyword.put(:password, password)
       |> Enum.reject(fn {_k, v} -> v === nil end)
@@ -395,6 +398,14 @@ defmodule Lapin.Connection do
   end
 
   defp map_userinfo(_), do: [nil, nil]
+
+  defp map_vhost(nil), do: "/"
+  defp map_vhost(path) do
+    case String.replace_leading(path, "/", "") do
+      "" -> "/"
+      vhost -> vhost
+    end
+  end
 
   defp map_auth_mechanism(:amqplain), do: &:amqp_auth_mechanisms.amqplain/3
   defp map_auth_mechanism(:external), do: &:amqp_auth_mechanisms.external/3
