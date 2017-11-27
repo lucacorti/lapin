@@ -28,7 +28,7 @@ defmodule Lapin.Connection do
     - uri: AMQP URI (String.t | URI.t)
     - host: broker hostname (string | charlist), *default: 'localhost'*
     - port: broker port (string | integer), *default: 5672*
-    - virtual_host: broker vhost (string), *default: ""*
+    - virtual_host: broker vhost (string), *default: "/"*
     - username: username (string)
     - password: password (string)
     - auth_mechanisms: broker auth_mechanisms ([:amqplain | :external | :plain]), *default: amqp_client default*
