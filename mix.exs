@@ -4,7 +4,7 @@ defmodule Lapin.Mixfile do
   def project do
     [
       app: :lapin,
-      version: "0.3.0",
+      version: "0.3.1",
       elixir: "~> 1.5",
       description: "Elixir RabbitMQ Client",
       source_url: "https://github.com/lucacorti/lapin",
@@ -30,7 +30,7 @@ defmodule Lapin.Mixfile do
       {:earmark, ">= 0.0.0", only: [:dev]},
       {:credo, ">= 0.0.0", only: [:dev]},
       {:dialyxir, ">= 0.0.0", only: [:dev]},
-      {:amqp, "~> 0.3.0"},
+      {:amqp, "~> 0.3.1"},
       {:connection, "~> 1.0.0"}
     ]
   end
