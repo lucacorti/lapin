@@ -7,5 +7,7 @@ defmodule Lapin.Pattern.Routing do
   use Lapin.Pattern
 
   def exchange_type(%Channel{config: config}), do: Keyword.get(config, :exchange_type, :direct)
-  def routing_key(%Channel{config: config, routing_key: routing_key}), do: Keyword.get(config, :routing_key, routing_key)
+
+  def routing_key(%Channel{config: config, routing_key: routing_key}),
+    do: Keyword.get(config, :routing_key, routing_key)
 end
