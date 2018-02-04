@@ -118,9 +118,7 @@ defmodule Lapin.Channel do
   """
   @spec get([t], exchange, routing_key, role) :: t
   def get(channels, exchange, routing_key, role) do
-    Enum.find(channels, fn channel ->
-      exchange == channel.exchange && routing_key == channel.routing_key && role == channel.role
-    end)
+    Enum.find(channels, &(channel_matches?(&1, exchange, routing_key, role)))
   end
 
   defp setup(%{role: :consumer, amqp_channel: amqp_channel, pattern: pattern, queue: queue} = channel) do
@@ -165,5 +163,9 @@ defmodule Lapin.Channel do
       error ->
         error
     end
+  end
+
+  defp channel_matches?(channel, exchange, routing_key, role) do
+    channel.exchange === exchange && channel.routing_key === routing_key && channel.role === role
   end
 end
