@@ -6,7 +6,7 @@ defmodule Lapin.Utils do
   @doc """
   Checks the cconfiguration contains some keys
   """
-  @spec check_mandatory_params(Keyword.t, [atom]) :: :ok | {:error, :missing_params, [atom]}
+  @spec check_mandatory_params(Keyword.t(), [atom]) :: :ok | {:error, :missing_params, [atom]}
   def check_mandatory_params(configuration, params) do
     if Enum.all?(params, &Keyword.has_key?(configuration, &1)) do
       :ok

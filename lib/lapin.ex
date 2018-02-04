@@ -10,5 +10,5 @@ defmodule Lapin do
   @typedoc """
   Lapin configuration
   """
-  @type config :: [connections: [Connection.config]]
+  @type config :: [connections: [Connection.config()]]
 end

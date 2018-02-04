@@ -5,7 +5,7 @@ defmodule Lapin.Connection.Supervisor do
   use Supervisor
   require Logger
 
-  @spec start_link(configuration :: Lapin.config) :: Supervisor.on_start
+  @spec start_link(configuration :: Lapin.config()) :: Supervisor.on_start()
   def start_link(configuration) do
     Supervisor.start_link(__MODULE__, configuration, name: __MODULE__)
   end
