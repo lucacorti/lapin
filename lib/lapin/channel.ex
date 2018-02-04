@@ -199,7 +199,11 @@ defmodule Lapin.Channel do
     end
   end
 
-  defp channel_matches?(channel, exchange, routing_key, role) do
-    channel.exchange === exchange && channel.routing_key === routing_key && channel.role === role
+  defp channel_matches?(%{pattern: pattern} = channel, exchange, routing_key, role) do
+    if pattern.exchange_type(channel) == :topic do
+      channel.exchange == exchange && channel.role
+    else
+      channel.exchange == exchange && channel.routing_key == routing_key && channel.role == role
+    end
   end
 end
