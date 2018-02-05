@@ -5,6 +5,10 @@ defmodule LapinTest.HelloWorld do
   require Logger
 
   def handle_deliver(channel, message) do
-    Logger.debug fn -> "Consuming message #{inspect message, pretty: true} received on #{inspect channel, pretty: true}" end
+    Logger.debug(fn ->
+      "Consuming message #{inspect(message, pretty: true)} received on #{
+        inspect(channel, pretty: true)
+      }"
+    end)
   end
 end

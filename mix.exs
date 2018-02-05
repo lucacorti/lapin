@@ -10,7 +10,7 @@ defmodule Lapin.Mixfile do
       source_url: "https://github.com/lucacorti/lapin",
       package: package(),
       docs: docs(),
-      start_permanent: Mix.env == :prod,
+      start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
   end
@@ -39,7 +39,7 @@ defmodule Lapin.Mixfile do
     [
       maintainers: ["Luca Corti"],
       licenses: ["MIT"],
-      links: %{ "GitHub": "https://github.com/lucacorti/lapin" }
+      links: %{GitHub: "https://github.com/lucacorti/lapin"}
     ]
   end
 
