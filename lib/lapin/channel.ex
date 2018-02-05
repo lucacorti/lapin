@@ -137,7 +137,7 @@ defmodule Lapin.Channel do
   """
   @spec get([t], consumer_tag) :: t
   def get(channels, consumer_tag) do
-    Enum.find(channels, &(channel_matches?(&1, consumer_tag)))
+    Enum.find(channels, &channel_matches?(&1, consumer_tag))
   end
 
   @doc """
@@ -145,7 +145,7 @@ defmodule Lapin.Channel do
   """
   @spec get([t], exchange, routing_key, role) :: t
   def get(channels, exchange, routing_key, role) do
-    Enum.find(channels, &(channel_matches?(&1, exchange, routing_key, role)))
+    Enum.find(channels, &channel_matches?(&1, exchange, routing_key, role))
   end
 
   defp setup(
