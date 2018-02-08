@@ -74,6 +74,18 @@ defmodule Lapin.Channel do
             config: nil
 
   @doc """
+  Creates a channel
+  """
+  @spec create(connection :: AMQP.Connection.t()) :: t            
+  def create(connection) do
+    with {:ok, channel} <- AMQP.Channel.open(connection) do
+      channel
+    else
+      error -> error
+    end
+  end
+
+  @doc """
   Creates a channel from configuration
   """
   @spec create(connection :: AMQP.Connection.t(), config) :: t
