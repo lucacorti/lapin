@@ -128,7 +128,7 @@ defmodule Lapin.Connection do
   end
 
   @backoff 1_000
-  @connection_default_params [connecion_timeout: @backoff]
+  @connection_default_params [connection_timeout: @backoff]
   @default_rabbitmq_host 'localhost'
   @default_rabbitmq_port 5672
 
