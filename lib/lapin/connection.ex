@@ -157,6 +157,10 @@ defmodule Lapin.Connection do
     AMQP.Connection.close(connection)
   end
 
+  def get() do
+    Connection.call(connection, :get_connection)  
+  end
+
   @doc """
   Retrieve the underlying AMQP.Connection
   """
@@ -176,6 +180,10 @@ defmodule Lapin.Connection do
         ) :: on_callback
   def publish(connection, exchange, routing_key, payload, options \\ []) do
     Connection.call(connection, {:publish, exchange, routing_key, payload, options})
+  end
+
+  def handle_call(:get_connection, _from, %{connection: conn} = state) do
+    {:reply, conn, state}
   end
 
   def handle_call(
