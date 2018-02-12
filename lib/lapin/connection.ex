@@ -157,6 +157,9 @@ defmodule Lapin.Connection do
     AMQP.Connection.close(connection)
   end
 
+  @doc """
+  Retrieve the underlying AMQP.Connection
+  """
   def get(connection) do
     Connection.call(connection, :get_connection)  
   end
