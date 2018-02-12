@@ -294,7 +294,7 @@ defmodule Lapin.Connection do
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    with {:ok, channel} <- Channel.get(channels, exchange, routing_key, :producer),
+    with {:ok, channel} <- Channel.get(channels, exchange, routing_key),
          :ok <- module.handle_return(channel, message) do
       Logger.debug(fn -> "Broker returned message #{inspect(message)}" end)
     else

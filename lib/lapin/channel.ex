@@ -143,28 +143,19 @@ defmodule Lapin.Channel do
   """
   @spec get([t], consumer_tag) :: {:ok, t} | {:error, :channel_not_found}
   def get(channels, consumer_tag) do
-    case Enum.find(channels, &channel_matches?(&1, consumer_tag)) do
-      nil ->
-        {:error, :channel_not_found}
-
-      channel ->
-        {:ok, channel}
-    end
+    Enum.find(channels, fn %{pattern: pattern, role: role} = channel ->
+      role == :consumer && pattern.can_consume?(channel, consumer_tag)
+    end)
   end
 
   @doc """
   Find channel by exchange and routing key
   """
-  @spec get([t], exchange, routing_key, role) :: {:ok, t} | {:error, :channel_not_found}
-  def get(channels, exchange, routing_key, role) do
-    case Enum.find(channels, &channel_matches?(&1, exchange, routing_key, role)) do
-      nil ->
-        {:error, :channel_not_found}
-
-      channel ->
-        {:ok, channel}
-    end
-  end
+  @spec get([t], exchange, routing_key) :: {:ok, t} | {:error, :channel_not_found}
+  def get(channels, exchange, routing_key) do
+    Enum.find(channels, fn %{pattern: pattern, role: role} = channel ->
+      role == :producer && pattern.can_publish?(channel, exchange, routing_key)
+    end)
 
   @doc """
   Reject message
@@ -257,18 +248,6 @@ defmodule Lapin.Channel do
     else
       error ->
         error
-    end
-  end
-
-  defp channel_matches?(channel, consumer_tag) do
-    channel.consumer_tag == consumer_tag
-  end
-
-  defp channel_matches?(%{pattern: pattern} = channel, exchange, routing_key, role) do
-    if pattern.exchange_type(channel) == :topic do
-      channel.exchange == exchange && channel.role
-    else
-      channel.exchange == exchange && channel.routing_key == routing_key && channel.role == role
     end
   end
 end

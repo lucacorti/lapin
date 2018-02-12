@@ -20,6 +20,17 @@ defmodule Lapin.Pattern do
   @type t :: __MODULE__
 
   @doc """
+  Signals if the channel is able to publish to the specified exchange/routing_key
+  """
+  @callback can_publish?(channel :: Channel.t(), Channel.exchange(), Channel.routing_key()) ::
+              boolean
+
+  @doc """
+  Signals if the channel is able to consume with the specified consumer_tag
+  """
+  @callback can_consume?(channel :: Channel.t(), Channel.consumer_tag()) :: boolean
+
+  @doc """
   Consumer acknowledgements enabled
   """
   @callback consumer_ack(channel :: Channel.t()) :: boolean
@@ -85,6 +96,11 @@ defmodule Lapin.Pattern do
       @queue_arguments []
       @queue_durable true
       @routing_key ""
+
+      def can_consume?(channel, consumer_tag), do: channel.consumer_tag == consumer_tag
+
+      def can_publish?(channel, exchange, routing_key),
+        do: channel.exchange == exchange && channel.routing_key == routing_key
 
       def consumer_ack(%Channel{config: config}),
         do: Keyword.get(config, :consumer_ack, @consumer_ack)
