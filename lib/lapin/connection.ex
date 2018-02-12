@@ -184,8 +184,7 @@ defmodule Lapin.Connection do
         _from,
         %{channels: channels, module: module} = state
       ) do
-    with channel when not is_nil(channel) <-
-           Channel.get(channels, exchange, routing_key, :producer),
+    with channel when not is_nil(channel) <- Channel.get(channels, exchange, routing_key),
          %Channel{pattern: pattern} <- channel,
          amqp_channel when not is_nil(amqp_channel) <- channel.amqp_channel,
          mandatory <- pattern.publisher_mandatory(channel),
@@ -295,8 +294,7 @@ defmodule Lapin.Connection do
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    with channel when not is_nil(channel) <-
-           Channel.get(channels, exchange, routing_key, :producer),
+    with channel when not is_nil(channel) <- Channel.get(channels, exchange, routing_key),
          :ok <- module.handle_return(channel, message) do
       Logger.debug(fn -> "Broker returned message #{inspect(message)}" end)
     else

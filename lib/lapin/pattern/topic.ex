@@ -10,4 +10,7 @@ defmodule Lapin.Pattern.Topic do
 
   def routing_key(%Channel{config: config, routing_key: routing_key}),
     do: Keyword.get(config, :routing_key, routing_key)
+
+  def can_publish?(%Channel{role: role} = channel, exchange, _routing_key),
+    do: channel.exchange == exchange
 end
