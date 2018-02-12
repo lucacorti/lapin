@@ -19,6 +19,15 @@ defp deps() do
 end
 ```
 
+And add the `Lapin.Supervisor.start_link` function under your application supervision tree:
+
+```elixir
+children = [
+  supervisor(Lapin.Supervisor, [[], [name: Lapin.Supervisor]])
+  ...
+]
+```
+
 ## Quick Start ##
 
 If you are impatient to try **Lapin** out, just tweak this basic configuration

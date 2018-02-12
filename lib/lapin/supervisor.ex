@@ -1,13 +1,13 @@
-defmodule Lapin.Connection.Supervisor do
-  @moduledoc """
-  Lapin Connections Supervisor
-  """
+defmodule Lapin.Supervisor do
+  @moduledoc false
+
   use Supervisor
   require Logger
 
-  @spec start_link(configuration :: Lapin.config()) :: Supervisor.on_start()
-  def start_link(configuration) do
-    Supervisor.start_link(__MODULE__, configuration, name: __MODULE__)
+  @spec start_link() :: Supervisor.on_start()
+  def start_link() do
+    connections = Application.get_env(:lapin, :connections, [])
+    Supervisor.start_link(__MODULE__, connections, name: __MODULE__)
   end
 
   def init(configuration) do
