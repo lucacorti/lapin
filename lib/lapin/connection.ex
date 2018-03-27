@@ -161,13 +161,6 @@ defmodule Lapin.Connection do
   Retrieve the underlying AMQP.Connection
   """
   def get(connection) do
-    Connection.call(connection, :get_connection)  
-  end
-
-  @doc """
-  Retrieve the underlying AMQP.Connection
-  """
-  def get(connection) do
     Connection.call(connection, :get_connection)
   end
 
