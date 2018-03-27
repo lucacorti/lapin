@@ -19,5 +19,5 @@ defmodule Lapin.Utils do
   @doc """
   Replace sensitive data with asterisks
   """
-  def obfuscate_data(data), do: String.replace(~r/./, "*")
+  def obfuscate_data(data), do: String.replace(data, ~r/./, "*")
 end
