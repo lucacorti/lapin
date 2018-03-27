@@ -397,7 +397,7 @@ defmodule Lapin.Connection do
       {:error, error} ->
         Logger.error(fn ->
           obfuscated_configuration = configuration
-          |> Keyword.get_and_update!(:password, &Lapin.Utils.obfuscate_data/1)
+          |> Keyword.get_and_update!(:password, &({&1, Lapin.Utils.obfuscate_data(&1)}))
           "Connection error: #{error} for #{inspect(obfuscated_configuration)}, backing off for #{@backoff}"
         end)
 
