@@ -158,6 +158,13 @@ defmodule Lapin.Connection do
   end
 
   @doc """
+  Retrieve the underlying AMQP.Connection
+  """
+  def get(connection) do
+    Connection.call(connection, :get_connection)
+  end
+
+  @doc """
   Publishes a message to the specified exchange with the given routing_key
   """
   @spec publish(
@@ -389,6 +396,7 @@ defmodule Lapin.Connection do
     else
       {:error, error} ->
         Logger.error(fn ->
+          obfuscated_configuration = configuration |> Keyword.get_and_update(:password, &Lapin.Utils.obfuscate_data/1)
           "Connection error: #{error} for #{inspect(configuration)}, backing off for #{@backoff}"
         end)
 

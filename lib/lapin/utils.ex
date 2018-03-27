@@ -15,4 +15,9 @@ defmodule Lapin.Utils do
       {:error, :missing_params, missing_params}
     end
   end
+
+  @doc """
+  Replace sensitive data with asterisks
+  """
+  def obfuscate_data(data), do: String.replace(~r/./, "*")
 end
