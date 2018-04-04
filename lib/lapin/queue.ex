@@ -6,11 +6,13 @@ defmodule Lapin.Queue do
   @typedoc "Queue"
   @type t :: %__MODULE__{
           name: String.t(),
+          binds: [],
           declare: boolean,
           options: Keyword.t()
         }
 
   defstruct name: "",
+            binds: [],
             declare: true,
             options: []
 
@@ -18,9 +20,7 @@ defmodule Lapin.Queue do
   require Logger
 
   @spec new(Keyword.t) :: %__MODULE__{}
-  def new(attrs) do
-    struct(%__MODULE__{}, attrs)
-  end
+  def new(attrs), do: struct(%__MODULE__{}, attrs)
 
   @spec declare(t(), Channel.t()) :: :ok | {:error, term}
   def declare(%{declare: false} = _queue, _channel), do: :ok
@@ -38,5 +38,17 @@ defmodule Lapin.Queue do
       error ->
         error
     end
+  end
+
+  def bind(%{name: name, binds: binds}, channel) do
+    binds
+    |> Enum.reduce_while(:ok, fn {exchange, options}, acc ->
+      case Queue.bind(channel, name, exchange, options) do
+        :ok ->
+          {:cont, acc}
+        error ->
+          {:halt, error}
+      end
+    end)
   end
 end

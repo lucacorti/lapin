@@ -80,7 +80,7 @@ defmodule Lapin.Producer do
           channel: Channel,
           pattern: atom,
           config: config,
-          exchange: Exchange.t()
+          exchange: String.t()
         }
   defstruct channel: nil,
             pattern: nil,
@@ -97,12 +97,9 @@ defmodule Lapin.Producer do
 
     with {:ok, channel} <- Channel.open(connection),
          producer <- %{producer | channel: channel},
-         exchange <- Exchange.new(pattern.exchange(producer)),
-         :ok <- Exchange.declare(exchange, channel),
-         producer <- %{producer | exchange: exchange},
+         exchange <- pattern.exchange(producer),
          :ok <- set_confirm(producer, pattern.confirm(producer)) do
-      Logger.debug(fn -> "Producer setup complete" end)
-      producer
+      %{producer | exchange: exchange}
     else
       {:error, error} ->
         Logger.error("Error creating producer from config #{config}: #{inspect(error)}")
@@ -115,16 +112,8 @@ defmodule Lapin.Producer do
   """
   @spec get([t], Exchange.name) :: t | nil
   def get(producers, exchange) do
-    Enum.find(producers, &(&1.exchange.name == exchange))
+    Enum.find(producers, &(&1.exchange == exchange))
   end
-
-  # defp declare_binding(_producer, nil = _queue, nil = _exchange), do: :ok
-  # defp declare_binding(_producer, nil = _queue, _exchange), do: :ok
-  # defp declare_binding(_producer, _queue, nil = _exchange), do: :ok
-  #
-  # defp declare_binding(%{channel: channel, pattern: pattern} = producer, queue, exchange) do
-  #   Queue.bind(channel, queue, exchange, routing_key: pattern.routing_key(producer))
-  # end
 
   defp set_confirm(_producer, false = _confirm), do: :ok
 

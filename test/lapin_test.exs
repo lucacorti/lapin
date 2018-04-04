@@ -19,12 +19,6 @@ defmodule LapinTest do
   use ExUnit.Case
   doctest Lapin
 
-  @binary_msg "msg"
-
-  setup_all do
-    %{}
-  end
-
   test "Supervisor starts correctly" do
     Lapin.Connection.Supervisor
     |> Process.whereis()
@@ -37,7 +31,7 @@ defmodule LapinTest do
         LapinTest.Worker,
         "test_exchange",
         "test_routing_key",
-        @binary_msg
+        "msg"
       )
   end
 
@@ -47,12 +41,12 @@ defmodule LapinTest do
         LapinTest.Worker,
         "test_exchange",
         "bad_routing_key",
-        @binary_msg
+        "msg"
       )
   end
 
   test "Bad host gets error on publish" do
     {:error, :not_connected} =
-      Lapin.Connection.publish(LapinTest.BadHostHelloWorld, "test_badhost", "", @binary_msg)
+      Lapin.Connection.publish(LapinTest.BadHostHelloWorld, "test_badhost", "", "msg")
   end
 end
