@@ -19,7 +19,7 @@ defmodule Lapin.Queue do
   alias AMQP.Queue
   require Logger
 
-  @spec new(Keyword.t) :: %__MODULE__{}
+  @spec new(Keyword.t()) :: %__MODULE__{}
   def new(attrs), do: struct(%__MODULE__{}, attrs)
 
   @spec declare(t(), Channel.t()) :: :ok | {:error, term}
@@ -46,6 +46,7 @@ defmodule Lapin.Queue do
       case Queue.bind(channel, name, exchange, options) do
         :ok ->
           {:cont, acc}
+
         error ->
           {:halt, error}
       end

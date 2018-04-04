@@ -376,10 +376,9 @@ defmodule Lapin.Connection do
   end
 
   def connect(_info, %{configuration: configuration} = state) do
-    with module <- Keyword.get(configuration, :module),
-         consumers <- Keyword.get(configuration, :consumers, []),
-         producers <- Keyword.get(configuration, :producers, []),
-         configuration <- Keyword.merge(@connection_default_params, configuration),
+    module = Keyword.get(configuration, :module)
+
+    with configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- AMQP.Connection.open(configuration),
          producers <- Keyword.get(configuration, :producers, []),
          producers <- Enum.map(producers, &Producer.create(connection, &1)),
@@ -388,42 +387,51 @@ defmodule Lapin.Connection do
          {:ok, config_channel} <- Channel.open(connection),
          exchanges <- Keyword.get(configuration, :exchanges, []),
          exchanges <- Enum.map(exchanges, &Exchange.new/1),
-         :ok <- Enum.reduce_while(exchanges, :ok, fn exchange, acc ->
-            case Exchange.declare(exchange, config_channel) do
-              :ok ->
-                {:cont, acc}
-              error ->
-                {:halt, error}
-            end
-         end),
+         :ok <-
+           Enum.reduce_while(exchanges, :ok, fn exchange, acc ->
+             case Exchange.declare(exchange, config_channel) do
+               :ok ->
+                 {:cont, acc}
+
+               error ->
+                 {:halt, error}
+             end
+           end),
          queues <- Keyword.get(configuration, :queues, []),
          queues <- Enum.map(queues, &Queue.new/1),
-         :ok <- Enum.reduce_while(queues, :ok, fn queue, acc ->
-           case Queue.declare(queue, config_channel) do
-              :ok ->
-                {:cont, acc}
-              error ->
-                {:halt, error}
-            end
-         end),
-         :ok <- Enum.reduce_while(exchanges, :ok, fn exchange, acc ->
-           case Exchange.bind(exchange, config_channel) do
-              :ok ->
-                {:cont, acc}
-              error ->
-                {:halt, error}
-            end
-         end),
-         :ok <- Enum.reduce_while(queues, :ok, fn queue, acc ->
-           case Queue.bind(queue, config_channel) do
-              :ok ->
-                {:cont, acc}
-              error ->
-                {:halt, error}
-            end
-         end),
+         :ok <-
+           Enum.reduce_while(queues, :ok, fn queue, acc ->
+             case Queue.declare(queue, config_channel) do
+               :ok ->
+                 {:cont, acc}
+
+               error ->
+                 {:halt, error}
+             end
+           end),
+         :ok <-
+           Enum.reduce_while(exchanges, :ok, fn exchange, acc ->
+             case Exchange.bind(exchange, config_channel) do
+               :ok ->
+                 {:cont, acc}
+
+               error ->
+                 {:halt, error}
+             end
+           end),
+         :ok <-
+           Enum.reduce_while(queues, :ok, fn queue, acc ->
+             case Queue.bind(queue, config_channel) do
+               :ok ->
+                 {:cont, acc}
+
+               error ->
+                 {:halt, error}
+             end
+           end),
          :ok <- Channel.close(config_channel) do
       Process.monitor(connection.pid)
+
       {:ok,
        %{
          state
