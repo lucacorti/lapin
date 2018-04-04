@@ -2,21 +2,21 @@ defmodule LapinTest do
   use ExUnit.Case
   doctest Lapin
 
-  defmodule LapinTest.BadHostWorker do
-    use Lapin.Connection
-  end
-
   defmodule LapinTest.Worker do
     use Lapin.Connection
     require Logger
 
-    def handle_deliver(channel, message) do
+    def handle_deliver(consumer, message) do
       Logger.debug(fn ->
         "Consuming message #{inspect(message, pretty: true)} received on #{
-          inspect(channel, pretty: true)
+          inspect(consumer, pretty: true)
         }"
       end)
     end
+  end
+
+  defmodule LapinTest.BadHostWorker do
+    use Lapin.Connection
   end
 
   @binary_msg "msg"
