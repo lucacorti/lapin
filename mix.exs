@@ -30,7 +30,7 @@ defmodule Lapin.Mixfile do
       {:earmark, ">= 0.0.0", only: [:dev]},
       {:credo, ">= 0.0.0", only: [:dev]},
       {:dialyxir, ">= 0.0.0", only: [:dev]},
-      {:amqp, "~> 0.3.1"},
+      {:amqp, ">= 1.0.0"},
       {:connection, "~> 1.0.0"}
     ]
   end

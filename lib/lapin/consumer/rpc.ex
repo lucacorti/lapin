@@ -1,8 +1,8 @@
-defmodule Lapin.Pattern.RPC do
+defmodule Lapin.Consumer.RPC do
   @moduledoc """
-  Lapin.Pattern implementation for the
+  `Lapin.Consumer` implementation for the
   [RPC](http://www.rabbitmq.com/tutorials/tutorial-six-elixir.html)
   RabbitMQ pattern.
   """
-  use Lapin.Pattern
+  use Lapin.Consumer
 end

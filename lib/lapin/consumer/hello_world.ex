@@ -1,8 +1,8 @@
-defmodule Lapin.Pattern.HelloWorld do
+defmodule Lapin.Consumer.HelloWorld do
   @moduledoc """
-  Lapin.Pattern implementation for the
+  `Lapin.Consumer` implementation for the
   [Hello World](http://www.rabbitmq.com/tutorials/tutorial-one-elixir.html)
   RabbitMQ pattern.
   """
-  use Lapin.Pattern
+  use Lapin.Consumer
 end
