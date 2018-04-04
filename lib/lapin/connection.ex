@@ -33,9 +33,10 @@ defmodule Lapin.Connection do
     - password: password (string)
     - auth_mechanisms: broker auth_mechanisms ([:amqplain | :external | :plain]), *default: amqp_client default*
     - ssl_options: ssl options ([:ssl:ssl_option]), *default: none*
-    - channels: channels to configure ([Channel.config]), *default: []*
+    - producers: producers to configure ([Producer.config]), *default: []*
+    - consumers: consumers to configure ([Consumer.config]), *default: []*
   """
-  @type config :: [channels: [Channel.config()]]
+  @type config :: [consumers: [Consumer.config()], producers: [Producer.config()]]
 
   @typedoc "Connection"
   @type t :: GenServer.server()
@@ -103,21 +104,21 @@ defmodule Lapin.Connection do
   A `Lapin.Message.Payload` implementation must be provided for this type. The
   default implementation leaves the payload unaltered.
   """
-  @callback payload_for(Channel.t(), Message.t()) :: Message.Payload.t()
+  @callback payload_for(Channel.t(), Message.t()) :: Payload.t()
 
   defmacro __using__(_) do
     quote do
-      alias Lapin.{Channel, Message}
+      alias Lapin.{Consumer, Message}
 
       @behaviour Lapin.Connection
 
-      def handle_cancel(_channel), do: :ok
-      def handle_cancel_ok(_channel), do: :ok
-      def handle_consume_ok(_channel), do: :ok
-      def handle_deliver(_channel, _message), do: :ok
-      def handle_publish(_channel, _message), do: :ok
-      def handle_return(_channel, _message), do: :ok
-      def payload_for(_channel, _message), do: <<>>
+      def handle_cancel(_consumer), do: :ok
+      def handle_cancel_ok(_consumer), do: :ok
+      def handle_consume_ok(_consumer), do: :ok
+      def handle_deliver(_consumer, _message), do: :ok
+      def handle_publish(_consumer, _message), do: :ok
+      def handle_return(_consumer, _message), do: :ok
+      def payload_for(_consumer, _message), do: <<>>
 
       defoverridable Lapin.Connection
 
@@ -142,8 +143,9 @@ defmodule Lapin.Connection do
   end
 
   def init(configuration) do
-    Process.flag(:trap_exit, true)
-    {:connect, :init, %{configuration: configuration, channels: [], connection: nil, module: nil}}
+  Process.flag(:trap_exit, true)
+    {:connect, :init,
+     %{configuration: configuration, consumers: [], producers: [], connection: nil, module: nil}}
   end
 
   @doc """
@@ -165,7 +167,7 @@ defmodule Lapin.Connection do
           connection :: t,
           Channel.exchange(),
           Channel.routing_key(),
-          Message.Payload.t(),
+          Payload.t(),
           options :: Keyword.t()
         ) :: on_callback
   def publish(connection, exchange, routing_key, payload, options \\ []) do
@@ -183,63 +185,45 @@ defmodule Lapin.Connection do
   def handle_call(
         {:publish, exchange, routing_key, payload, options},
         _from,
-        %{channels: channels, module: module} = state
+        %{producers: producers, module: module} = state
       ) do
-    with {:ok, %Channel{pattern: pattern} = channel} <-
-           Channel.get(channels, exchange, routing_key, :producer),
-         mandatory <- pattern.publisher_mandatory(channel),
-         persistent <- pattern.publisher_persistent(channel),
+    with producer when not is_nil(producer) <- Producer.get(producers, exchange),
+         %Producer{pattern: pattern, channel: channel} <- producer,
+         mandatory <- pattern.mandatory(producer),
+         persistent <- pattern.persistent(producer),
          options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
-         content_type <- Message.Payload.content_type(payload),
-         meta <- %{content_type: content_type},
-         {:ok, payload} <- Message.Payload.encode(payload),
-         :ok <- Channel.publish(channel, exchange, routing_key, payload, options) do
+         meta <- %{content_type: Payload.content_type(payload)},
+         {:ok, payload} <- Payload.encode(payload),
+         :ok <- Basic.publish(channel, exchange, routing_key, payload, options) do
       message = %Message{meta: Enum.into(options, meta), payload: payload}
 
-      if not pattern.publisher_confirm(channel) or Channel.confirm(channel) do
-        Logger.debug(fn -> "Published #{inspect(message)} on #{inspect(channel)}" end)
-        {:reply, module.handle_publish(channel, message), state}
+      if not pattern.confirm(producer) or Channel.confirm(channel) do
+        Logger.debug(fn -> "Published #{inspect(message)} on #{inspect(producer)}" end)
+        {:reply, module.handle_publish(producer, message), state}
       else
         error = "Error publishing #{inspect(message)}"
         Logger.debug(fn -> error end)
         {:reply, {:error, error}, state}
       end
     else
-      :passive ->
-        error = "Cannot publish, channel role is :passive"
-        Logger.error(error)
+      {:error, error} ->
+        Logger.debug(fn -> "Error sending message: #{inspect(error)}" end)
         {:reply, {:error, error}, state}
-
-      :consumer ->
-        error = "Cannot publish, channel role is :consumer"
-        Logger.error(error)
-        {:reply, {:error, error}, state}
-
-      {:error, :channel_not_found} ->
-        error =
-          "Error publishing: no channel for exchange '#{exchange}' with routing key '#{
-            routing_key
-          }'"
-
-        Logger.debug(fn -> error end)
-        {:reply, {:error, error}, state}
-
-      {:error, reason} ->
-        Logger.debug(fn -> "Error sending message: #{inspect(reason)}" end)
-        {:reply, {:error, reason}, state}
     end
   end
 
   def handle_info(
         {:basic_cancel, %{consumer_tag: consumer_tag}},
-        %{channels: channels, module: module} = state
+        %{consumers: consumers, module: module} = state
       ) do
-    with {:ok, channel} <- Channel.get(channels, consumer_tag) do
-      Logger.debug(fn -> "Broker cancelled consumer for #{inspect(channel)}" end)
-      module.handle_cancel(channel)
+    with consumer when not is_nil(consumer) <- Consumer.get(consumers, consumer_tag) do
+      Logger.debug(fn -> "Broker cancelled consumer for #{inspect(consumer)}" end)
+      module.handle_cancel(consumer)
     else
-      {:error, :channel_not_found} ->
-        Logger.warn("Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown channel")
+      nil ->
+        Logger.warn(
+          "Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown consumer"
+        )
 
       {:error, error} ->
         Logger.error("Error canceling consumer_tag '#{consumer_tag}': #{inspect(error)}")
@@ -250,11 +234,11 @@ defmodule Lapin.Connection do
 
   def handle_info(
         {:basic_cancel_ok, %{consumer_tag: consumer_tag}},
-        %{channels: channels, module: module} = state
+        %{consumers: consumers, module: module} = state
       ) do
-    with {:ok, channel} <- Channel.get(channels, consumer_tag),
-         :ok <- module.handle_cancel_ok(channel) do
-      Logger.debug(fn -> "Broker confirmed cancelling consumer for #{inspect(channel)}" end)
+    with consumer when not is_nil(consumer) <- Consumer.get(consumers, consumer_tag),
+         :ok <- module.handle_cancel_ok(consumer) do
+      Logger.debug(fn -> "Broker confirmed cancelling consumer for #{inspect(consumer)}" end)
     else
       {:error, :channel_not_found} ->
         Logger.debug(fn ->
@@ -270,15 +254,15 @@ defmodule Lapin.Connection do
 
   def handle_info(
         {:basic_consume_ok, %{consumer_tag: consumer_tag}},
-        %{channels: channels, module: module} = state
+        %{consumers: consumers, module: module} = state
       ) do
-    with {:ok, channel} <- Channel.get(channels, consumer_tag),
-         :ok <- module.handle_consume_ok(channel) do
-      Logger.debug(fn -> "Broker registered consumer for #{inspect(channel)}" end)
+    with consumer when not is_nil(consumer) <- Consumer.get(consumers, consumer_tag),
+         :ok <- module.handle_consume_ok(consumer) do
+      Logger.debug(fn -> "Broker registered consumer for #{inspect(consumer)}" end)
     else
       {:error, :channel_not_found} ->
         Logger.warn(
-          "Broker registered consumer_tag '#{consumer_tag}' for locally unknown channel"
+          "Broker registered consumer_tag '#{consumer_tag}' for locally unknown consumer"
         )
 
       error ->
@@ -289,13 +273,13 @@ defmodule Lapin.Connection do
   end
 
   def handle_info(
-        {:basic_return, payload, %{exchange: exchange, routing_key: routing_key} = meta},
-        %{channels: channels, module: module} = state
+        {:basic_return, payload, %{exchange: exchange} = meta},
+        %{producers: producers, module: module} = state
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    with {:ok, channel} <- Channel.get(channels, exchange, routing_key),
-         :ok <- module.handle_return(channel, message) do
+    with producer when not is_nil(producer) <- Producer.get(producers, exchange),
+         :ok <- module.handle_return(producer, message) do
       Logger.debug(fn -> "Broker returned message #{inspect(message)}" end)
     else
       {:error, :channel_not_found} ->
@@ -315,15 +299,15 @@ defmodule Lapin.Connection do
 
   def handle_info(
         {:basic_deliver, payload, %{consumer_tag: consumer_tag} = meta},
-        %{channels: channels, module: module} = state
+        %{consumers: consumers, module: module} = state
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    with {:ok, channel} <- Channel.get(channels, consumer_tag) do
-      spawn(fn -> consume(module, channel, meta, payload) end)
+    with consumer when not is_nil(consumer) <- Consumer.get(consumers, consumer_tag) do
+      spawn(fn -> consume(module, consumer, message) end)
     else
-      {:error, :channel_not_found} ->
-        Logger.error("Error processing message #{inspect(message)}, no local channel")
+      nil ->
+        Logger.error("Error processing message #{inspect(message)}, no local consumer")
     end
 
     {:noreply, state}
@@ -331,19 +315,19 @@ defmodule Lapin.Connection do
 
   defp consume(
          module,
-         %Channel{pattern: pattern} = channel,
-         %{delivery_tag: delivery_tag, redelivered: redelivered} = meta,
-         payload
+         %Consumer{channel: channel, pattern: pattern} = consumer,
+         %Message{
+           meta: %{delivery_tag: delivery_tag, redelivered: redelivered} = meta,
+           payload: payload
+         } = message
        ) do
-    message = %Message{meta: meta, payload: payload}
-
-    with consumer_ack <- pattern.consumer_ack(channel),
-         payload_for <- module.payload_for(channel, message),
-         content_type <- Message.Payload.content_type(payload_for),
-         message <- %Message{message | meta: Map.put(meta, :content_type, content_type)},
-         {:ok, payload} <- Message.Payload.decode_into(payload_for, payload),
-         message <- %Message{message | payload: payload},
-         :ok <- module.handle_deliver(channel, message) do
+    with ack <- pattern.ack(consumer),
+         payload_for <- module.payload_for(consumer, message),
+         content_type <- Payload.content_type(payload_for),
+         meta <- Map.put(meta, :content_type, content_type),
+         {:ok, payload} <- Payload.decode_into(payload_for, payload),
+         message <- %Message{message | meta: meta, payload: payload},
+         :ok <- module.handle_deliver(consumer, message) do
       Logger.debug(fn -> "Consuming message #{delivery_tag}" end)
       consume_ack(consumer_ack, channel, delivery_tag)
     else
@@ -373,7 +357,7 @@ defmodule Lapin.Connection do
       end
   end
 
-  defp consume_ack(true = _consumer_ack, channel, delivery_tag) do
+  defp consume_ack(true = _ack, channel, delivery_tag) do
     with :ok <- Channel.ack(channel, delivery_tag) do
       Logger.debug("Consumed message #{delivery_tag} successfully, ACK sent")
       :ok
@@ -384,28 +368,29 @@ defmodule Lapin.Connection do
     end
   end
 
-  defp consume_ack(false = _consumer_ack, _channel, delivery_tag) do
+  defp consume_ack(false = _ack, _channel, delivery_tag) do
     Logger.debug(fn -> "Consumed message #{delivery_tag}, ACK not required" end)
     :ok
   end
 
   def connect(_info, %{configuration: configuration} = state) do
-    module = Keyword.get(configuration, :module)
-
-    with channels <- Keyword.get(configuration, :channels, []),
+    with module <- Keyword.get(configuration, :module),
+         consumers <- Keyword.get(configuration, :consumers, []),
+         producers <- Keyword.get(configuration, :producers, []),
          configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- AMQP.Connection.open(configuration),
-         channels <-
-           Enum.reduce_while(channels, [], fn channel, acc ->
-             with {:ok, channel} <- Channel.create(connection, channel) do
-               {:cont, [channel | acc]}
-             else
-               {:error, _error} ->
-                 {:cont, acc}
-             end
-           end) do
+         producers <- Enum.map(producers, &Producer.create(connection, &1)),
+         consumers <- Enum.map(consumers, &Consumer.create(connection, &1)) do
       Process.monitor(connection.pid)
-      {:ok, %{state | module: module, channels: channels, connection: connection}}
+
+      {:ok,
+       %{
+         state
+         | module: module,
+           producers: producers,
+           consumers: consumers,
+           connection: connection
+       }}
     else
       {:error, error} ->
         Logger.error(fn ->

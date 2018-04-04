@@ -1,3 +1,20 @@
+defmodule LapinTest.Worker do
+  use Lapin.Connection
+  require Logger
+
+  def handle_deliver(channel, message) do
+    Logger.debug(fn ->
+      "Consuming message #{inspect(message, pretty: true)} received on #{
+        inspect(channel, pretty: true)
+      }"
+    end)
+  end
+end
+
+defmodule LapinTest.BadHostWorker do
+  use Lapin.Connection
+end
+
 defmodule LapinTest do
   use ExUnit.Case
   doctest Lapin
@@ -15,84 +32,40 @@ defmodule LapinTest do
     end
   end
 
+  @binary_msg "msg"
+
   setup_all do
-    exchange = "test_exchange"
-    queue = "test_queue"
-
-    %{
-      exchange: exchange,
-      queue: queue,
-      message: "",
-      producer: [
-        module: LapinTest.HelloWorld,
-        channels: [
-          [
-            role: :producer,
-            exchange: exchange,
-            queue: queue
-          ]
-        ]
-      ],
-      consumer: [
-        module: LapinTest.HelloWorld,
-        channels: [
-          [
-            role: :consumer,
-            exchange: exchange,
-            queue: queue
-          ]
-        ]
-      ],
-      passive: [
-        module: LapinTest.HelloWorld,
-        channels: [
-          [
-            role: :passive,
-            exchange: exchange,
-            queue: queue
-          ],
-          [
-            role: :passive,
-            exchange: exchange,
-            queue: queue
-          ]
-        ]
-      ],
-      bad_host: [
-        module: LapinTest.HelloWorld,
-        uri: "amqp://thisisnotthedefault:nopass@nohosthere:9999",
-        channels: [
-          [
-            role: :producer,
-            exchange: exchange,
-            queue: queue
-          ]
-        ]
-      ]
-    }
+    %{}
   end
 
-  test "hello_world_producer_can_publish", ctx do
-    {:ok, producer} = Lapin.Connection.start_link(ctx.producer)
-    :ok = Lapin.Connection.publish(producer, ctx.exchange, "", ctx.message)
-    :ok = Lapin.Connection.close(producer)
+  test "Supervisor starts correctly" do
+    Lapin.Connection.Supervisor
+    |> Process.whereis()
+    |> Process.alive?()
   end
 
-  test "hello_world_consumer_cant_publish", ctx do
-    {:ok, consumer} = Lapin.Connection.start_link(ctx.consumer)
-    {:error, _} = Lapin.Connection.publish(consumer, ctx.exchange, "", ctx.message)
-    :ok = Lapin.Connection.close(consumer)
+  test "Publish message" do
+    :ok =
+      Lapin.Connection.publish(
+        LapinTest.Worker,
+        "test_exchange",
+        "test_routing_key",
+        @binary_msg
+      )
   end
 
-  test "hello_world_passive_cant_publish", ctx do
-    {:ok, passive} = Lapin.Connection.start_link(ctx.passive)
-    {:error, _} = Lapin.Connection.publish(passive, ctx.exchange, "", ctx.message)
-    :ok = Lapin.Connection.close(passive)
+  test "Error on publishing unroutable message" do
+    {:error, _} =
+      Lapin.Connection.publish(
+        LapinTest.Worker,
+        "test_exchange",
+        "bad_routing_key",
+        @binary_msg
+      )
   end
 
-  test "hello_world_bad_host_not_connected_error_on_publish", ctx do
-    {:ok, bad_host} = Lapin.Connection.start_link(ctx.bad_host)
-    {:error, :not_connected} = Lapin.Connection.publish(bad_host, ctx.exchange, "", ctx.message)
-    :ok = Lapin.Connection.close(bad_host)
+  test "Bad host gets error on publish" do
+    {:error, :not_connected} =
+      Lapin.Connection.publish(LapinTest.BadHostHelloWorld, "test_badhost", "", @binary_msg)
   end
 end

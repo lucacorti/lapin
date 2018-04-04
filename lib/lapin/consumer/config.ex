@@ -1,9 +1,9 @@
-defmodule Lapin.Pattern.Config do
+defmodule Lapin.Consumer.Config do
   @moduledoc """
-  Default `Lapin.Pattern` behaviour implementation for channels
+  Default `Lapin.Consumer` behaviour implementation for channels
 
   Used by default to read settings from the static configuration file and
   provide defaults for unspecified settings.
   """
-  use Lapin.Pattern
+  use Lapin.Consumer
 end

@@ -39,12 +39,10 @@ config :lapin, :connections, [
     module: ExampleApp.Worker
     channels: [
       [
-        role: :consumer,
         exchange: "some_exchange",
         queue: "some_queue"
       ],
       [
-        role: :producer,
         exchange: "some_exchange",
         queue: "some_queue"
       ]
@@ -68,9 +66,7 @@ run your application with `iex -S mix` and publish a message:
 ...
 iex(1)> ExampleApp.Worker.publish("some_exchange", "routing_key", "payload")
 [debug] Published %Lapin.Message{meta: %{content_type: nil, mandatory: false, persistent: false}, payload: "payload"} on %Lap
-in.Channel{amqp_channel: %AMQP.Channel{conn: %AMQP.Connection{pid: #PID<0.212.0>}, pid: #PID<0.221.0>}, config: [role: :producer, e
-xchange: "test_exchange", queue: "test_queue"], consumer_tag: nil, exchange: "some_exchange", pattern: Lapin.Pattern.Config, queue:
- "some_queue", role: :producer, routing_key: "routing_key"}
+in.Channel{amqp_channel: %AMQP.Channel{conn: %AMQP.Connection{pid: #PID<0.212.0>}, pid: #PID<0.221.0>}, config: [exchange: "test_exchange", queue: "test_queue"], consumer_tag: nil, exchange: "some_exchange", pattern: Lapin.Pattern.Config, queue: "some_queue", routing_key: "routing_key"}
 :ok
 [debug] Consuming message 1
 [debug] Consumed message 1 successfully, ACK sent
@@ -97,7 +93,7 @@ For details on implementing *Lapin* worker modules check out the `Lapin.Connecti
 behaviour documentation.
 
 At a minimum, you need to configure a *module* for each connection and
-*role*, *exchange* and *queue* for each channel. You can find the complete list
+ *exchange* and *queue* for each channel. You can find the complete list
 of connection configuration settings in the in `Lapin.Connection` *config* type
 specification.
 
@@ -128,17 +124,15 @@ config :lapin, :connections, [
     module: ExampleApp.Worker,
     channels: [
       [
-        role: :consumer,
         exchange: "some_exchange",
         queue: "some_queue",
         exchange_type: :fanout,
         queue_durable: false
       ],
       [
-        role: :producer,
         exchange: "some_exchange",
         queue: "some_queue",
-        publisher_persistent: true
+        persistent: true
       ]
     ]
   ]
@@ -166,7 +160,7 @@ defmodule ExampleApp.Pattern do
 
   def exchange_type(_channel), do: :fanout,
   def queue_durable(_channel), do: false  
-  def publisher_persistent(_channel), do: true
+  def persistent(_channel), do: true
 end
 ```
 
@@ -179,13 +173,11 @@ config :lapin, :connections, [
     channels: [
       [
         pattern: ExampleApp.Pattern,
-        role: :consumer,
         exchange: "some_exchange",
         queue: "some_queue"
       ],
       [
         pattern: ExampleApp.Pattern,
-        role: :producer,
         exchange: "some_exchange",
         queue: "some_queue"
       ]
@@ -206,8 +198,8 @@ settings from the configuration file and provides sensible defaults if needed.
 ### Consuming messages ###
 
 Once you have completed your configuration, connections will be automatically
-established and channels with a `:consumer` role will start receiving
-messages published on the queues they are consuming.
+established and channels will start receiving messages published on the queues
+they are consuming.
 
 You can handle received messages by overriding the `Lapin.Connection.handle_deliver/2`
 callback. The default implementation simply logs messages and returns `:ok`.
@@ -250,10 +242,9 @@ message acknowledgement and rejection to the broker.
 
 ### Publishing messages ###
 
-To publish messages on channels with a `:producer` role, you can use the
-`publish` function injected in your worker module by `use Lapin.Connection`,
-or directly call `Lapin.Connection.publish/5` by passing your worker module as
-a connection.
+To publish messages on channels you can use the `publish` function injected
+in your worker module by `use Lapin.Connection`, or directly call
+`Lapin.Connection.publish/5` by passing your worker module as a connection.
 
 `config/config.exs`:
 
@@ -263,7 +254,6 @@ config :lapin, :connections, [
     module: ExampleApp.Worker,
     channels: [
       [
-        role: :producer,
         exchange: "some_exchange",
         queue: "some_queue"
       ]
@@ -291,7 +281,6 @@ If you are starting a `Lapin.Connection` manually, you can also pass the connect
   module: ExampleApp.Worker,
   channels: [
     [
-      role: :producer,
       pattern: ExampleApp.Pattern,
       exchange: "some_exchange",
       queue: "some_queue"
@@ -305,19 +294,15 @@ If you are starting a `Lapin.Connection` manually, you can also pass the connect
 ### Declaring broker configuration ###
 
 If you want to declare exchanges and queues without producing nor consuming
-messages, you can set channel role to `:passive` in your channels.
-
-This particular role does not allow publishing via messages and does not register
-with the broker to consume the configured queue. *Lapin* will just create the
-channel and declare exchanges, queues and queue bindings, reporting any
-discrepancies between the configuration and the broker state if there are any.
+messages, you can. *Lapin* will just create a channel and declare exchanges,
+queues and queue bindings, reporting any discrepancies between the configuration
+and the broker state if there are any.
 
 ```elixir
 {:ok, pid} = Lapin.Connection.start_link([
   module: ExampleApp.Worker,
   channels: [
     [
-      role: :passive,
       exchange: "some_exchange",
       queue: "some_queue"
     ]
