@@ -10,7 +10,7 @@ defmodule Lapin.Exchange do
           binds: [],
           declare: false,
           type: type,
-          options: Keyword.t(),
+          options: Keyword.t()
         }
 
   alias AMQP.{Channel, Exchange, Queue}
@@ -21,7 +21,7 @@ defmodule Lapin.Exchange do
             type: :direct,
             options: []
 
-  @spec new(Keyword.t) :: %__MODULE__{}
+  @spec new(Keyword.t()) :: %__MODULE__{}
   def new(attrs), do: struct(%__MODULE__{}, attrs)
 
   @spec declare(t(), Channel.t()) :: :ok | {:error, term}
@@ -42,6 +42,7 @@ defmodule Lapin.Exchange do
       case Queue.bind(channel, queue, name, options) do
         :ok ->
           {:cont, acc}
+
         error ->
           {:halt, error}
       end
