@@ -1,25 +1,12 @@
-defmodule LapinTest.Worker do
-  use Lapin.Connection
-  require Logger
-
-  def handle_deliver(channel, message) do
-    Logger.debug(fn ->
-      "Consuming message #{inspect(message, pretty: true)} received on #{
-        inspect(channel, pretty: true)
-      }"
-    end)
-  end
-end
-
-defmodule LapinTest.BadHostWorker do
-  use Lapin.Connection
-end
-
 defmodule LapinTest do
   use ExUnit.Case
   doctest Lapin
 
-  defmodule LapinTest.HelloWorld do
+  defmodule LapinTest.BadHostWorker do
+    use Lapin.Connection
+  end
+
+  defmodule LapinTest.Worker do
     use Lapin.Connection
     require Logger
 
@@ -50,7 +37,7 @@ defmodule LapinTest do
         LapinTest.Worker,
         "test_exchange",
         "test_routing_key",
-        @binary_msg
+        "msg"
       )
   end
 
@@ -60,12 +47,12 @@ defmodule LapinTest do
         LapinTest.Worker,
         "test_exchange",
         "bad_routing_key",
-        @binary_msg
+        "msg"
       )
   end
 
   test "Bad host gets error on publish" do
     {:error, :not_connected} =
-      Lapin.Connection.publish(LapinTest.BadHostHelloWorld, "test_badhost", "", @binary_msg)
+      Lapin.Connection.publish(LapinTest.BadHostWorker, "test_badhost", "", "msg")
   end
 end

@@ -16,7 +16,9 @@ defmodule Lapin.Connection do
 
   require Logger
 
-  alias Lapin.{Channel, Message}
+  alias AMQP.{Basic, Channel, Confirm}
+  alias Lapin.{Exchange, Message, Consumer, Producer, Queue}
+  alias Lapin.Message.Payload
 
   import Lapin.Utils, only: [check_mandatory_params: 2]
 
@@ -379,10 +381,49 @@ defmodule Lapin.Connection do
          producers <- Keyword.get(configuration, :producers, []),
          configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- AMQP.Connection.open(configuration),
+         producers <- Keyword.get(configuration, :producers, []),
          producers <- Enum.map(producers, &Producer.create(connection, &1)),
-         consumers <- Enum.map(consumers, &Consumer.create(connection, &1)) do
+         consumers <- Keyword.get(configuration, :consumers, []),
+         consumers <- Enum.map(consumers, &Consumer.create(connection, &1)),
+         {:ok, config_channel} <- Channel.open(connection),
+         exchanges <- Keyword.get(configuration, :exchanges, []),
+         exchanges <- Enum.map(exchanges, &Exchange.new/1),
+         :ok <- Enum.reduce_while(exchanges, :ok, fn exchange, acc ->
+            case Exchange.declare(exchange, config_channel) do
+              :ok ->
+                {:cont, acc}
+              error ->
+                {:halt, error}
+            end
+         end),
+         queues <- Keyword.get(configuration, :queues, []),
+         queues <- Enum.map(queues, &Queue.new/1),
+         :ok <- Enum.reduce_while(queues, :ok, fn queue, acc ->
+           case Queue.declare(queue, config_channel) do
+              :ok ->
+                {:cont, acc}
+              error ->
+                {:halt, error}
+            end
+         end),
+         :ok <- Enum.reduce_while(exchanges, :ok, fn exchange, acc ->
+           case Exchange.bind(exchange, config_channel) do
+              :ok ->
+                {:cont, acc}
+              error ->
+                {:halt, error}
+            end
+         end),
+         :ok <- Enum.reduce_while(queues, :ok, fn queue, acc ->
+           case Queue.bind(queue, config_channel) do
+              :ok ->
+                {:cont, acc}
+              error ->
+                {:halt, error}
+            end
+         end),
+         :ok <- Channel.close(config_channel) do
       Process.monitor(connection.pid)
-
       {:ok,
        %{
          state

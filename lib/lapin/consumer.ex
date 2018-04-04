@@ -49,20 +49,12 @@ defmodule Lapin.Consumer do
       @behaviour Lapin.Consumer
 
       @ack false
-      @queue_arguments []
-      @queue_durable true
 
       def ack(%Consumer{config: config}), do: Keyword.get(config, :ack, @ack)
 
       def prefetch_count(%Consumer{config: config}), do: Keyword.get(config, :prefetch_count)
 
       def queue(%Consumer{config: config}), do: Keyword.get(config, :queue)
-
-      def queue_arguments(%Consumer{config: config}),
-        do: Keyword.get(config, :queue_arguments, @queue_arguments)
-
-      def queue_durable(%Consumer{config: config}),
-        do: Keyword.get(config, :queue_durable, @queue_durable)
 
       defoverridable Lapin.Consumer
     end
@@ -73,7 +65,8 @@ defmodule Lapin.Consumer do
           channel: Channel,
           consumer_tag: consumer_tag(),
           pattern: atom,
-          config: config()
+          config: config(),
+          queue: String.t()
         }
   defstruct channel: nil,
             consumer_tag: nil,
@@ -90,11 +83,10 @@ defmodule Lapin.Consumer do
 
     with {:ok, channel} <- Channel.open(connection),
          consumer <- %{consumer | channel: channel},
-         :ok <- Queue.declare(pattern.queue(consumer), channel),
+         queue <- pattern.queue(consumer),
          :ok <- set_prefetch_count(consumer, pattern.prefetch_count(consumer)),
-         {:ok, consumer_tag} <- consume(consumer, pattern.queue(consumer)) do
-      Logger.debug(fn -> "Channel setup complete" end)
-      %{consumer | consumer_tag: consumer_tag}
+         {:ok, consumer_tag} <- consume(consumer, queue) do
+      %{consumer | consumer_tag: consumer_tag, queue: queue}
     else
       {:error, error} ->
         Logger.error("Error creating consumer from config #{config}: #{inspect(error)}")
