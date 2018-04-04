@@ -8,11 +8,15 @@ config :lapin, :connections, [
     consumers: [
       [
         pattern: Lapin.Consumer.WorkQueue,
-        exchange: "test_exchange",
-        queue: "test_queue",
-        routing_key: "test_routing_key"
+        queue: [name: "test_queue"]
       ]
-    ]
+    ],
+    producers: [
+      [
+        pattern: Lapin.Producer.WorkQueue,
+        exchange: [name: "test_exchange"]
+      ]
+    ],
   ],
   [
     module: LapinTest.BadHostHelloWorld,

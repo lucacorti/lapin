@@ -79,11 +79,13 @@ defmodule Lapin.Producer do
   @type t :: %__MODULE__{
           channel: Channel,
           pattern: atom,
-          config: config
+          config: config,
+          exchange: Exchange.t()
         }
   defstruct channel: nil,
             pattern: nil,
-            config: nil
+            config: nil,
+            exchange: nil
 
   @doc """
   Creates a producer from configuration
@@ -95,7 +97,9 @@ defmodule Lapin.Producer do
 
     with {:ok, channel} <- Channel.open(connection),
          producer <- %{producer | channel: channel},
-         :ok <- Exchange.declare(pattern.exchange(producer), channel),
+         exchange <- Exchange.new(pattern.exchange(producer)),
+         :ok <- Exchange.declare(exchange, channel),
+         producer <- %{producer | exchange: exchange},
          :ok <- set_confirm(producer, pattern.confirm(producer)) do
       Logger.debug(fn -> "Producer setup complete" end)
       producer
@@ -110,8 +114,8 @@ defmodule Lapin.Producer do
   Find consumer by consumer_tag
   """
   @spec get([t], Exchange.name) :: t | nil
-  def get(consumers, exchange) do
-    Enum.find(consumers, &(&1.exchange.name == exchange))
+  def get(producers, exchange) do
+    Enum.find(producers, &(&1.exchange.name == exchange))
   end
 
   # defp declare_binding(_producer, nil = _queue, nil = _exchange), do: :ok

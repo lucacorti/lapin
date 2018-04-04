@@ -362,8 +362,8 @@ defmodule Lapin.Connection do
   end
 
   def connect(_info, %{configuration: configuration} = state) do
-    with module <- Keyword.get(configuration, :module),
-         consumers <- Keyword.get(configuration, :consumers, []),
+    module = Keyword.get(configuration, :module)
+    with consumers <- Keyword.get(configuration, :consumers, []),
          producers <- Keyword.get(configuration, :producers, []),
          configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- AMQP.Connection.open(configuration),
@@ -382,7 +382,7 @@ defmodule Lapin.Connection do
     else
       {:error, error} ->
         Logger.error(fn ->
-          "Connection error: #{error} for #{inspect(configuration)}, backing off for #{@backoff}"
+          "Connection error: #{error} for #{module}, backing off for #{@backoff}"
         end)
 
         {:backoff, @backoff, state}

@@ -73,12 +73,14 @@ defmodule Lapin.Consumer do
           channel: Channel,
           consumer_tag: consumer_tag(),
           pattern: atom,
-          config: config()
+          config: config(),
+          queue: Queue.t()
         }
   defstruct channel: nil,
             consumer_tag: nil,
             pattern: nil,
-            config: nil
+            config: nil,
+            queue: nil
 
   @doc """
   Creates a consumer from configuration
@@ -90,9 +92,11 @@ defmodule Lapin.Consumer do
 
     with {:ok, channel} <- Channel.open(connection),
          consumer <- %{consumer | channel: channel},
-         :ok <- Queue.declare(pattern.queue(consumer), channel),
+         queue <- Queue.new(pattern.queue(consumer)),
+         :ok <- Queue.declare(queue, channel),
+         consumer <- %{consumer | queue: queue},
          :ok <- set_prefetch_count(consumer, pattern.prefetch_count(consumer)),
-         {:ok, consumer_tag} <- consume(consumer, pattern.queue(consumer)) do
+         {:ok, consumer_tag} <- consume(consumer, queue.name) do
       Logger.debug(fn -> "Channel setup complete" end)
       %{consumer | consumer_tag: consumer_tag}
     else
