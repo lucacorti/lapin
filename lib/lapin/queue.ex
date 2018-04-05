@@ -7,13 +7,11 @@ defmodule Lapin.Queue do
   @type t :: %__MODULE__{
           name: String.t(),
           binds: [],
-          declare: boolean,
           options: Keyword.t()
         }
 
   defstruct name: "",
             binds: [],
-            declare: true,
             options: []
 
   alias AMQP.Queue
@@ -23,8 +21,6 @@ defmodule Lapin.Queue do
   def new(attrs), do: struct(%__MODULE__{}, attrs)
 
   @spec declare(t(), Channel.t()) :: :ok | {:error, term}
-  def declare(nil = _queue, _channel), do: :ok
-
   def declare(%{name: name, options: options}, channel) do
     with {:ok, info} <-
            Queue.declare(
