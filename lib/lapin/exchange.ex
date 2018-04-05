@@ -8,7 +8,6 @@ defmodule Lapin.Exchange do
   @type t :: %__MODULE__{
           name: String.t(),
           binds: [],
-          declare: false,
           type: type,
           options: Keyword.t()
         }
@@ -17,7 +16,6 @@ defmodule Lapin.Exchange do
 
   defstruct name: "",
             binds: [],
-            declare: true,
             type: :direct,
             options: []
 
@@ -25,8 +23,6 @@ defmodule Lapin.Exchange do
   def new(attrs), do: struct(%__MODULE__{}, attrs)
 
   @spec declare(t(), Channel.t()) :: :ok | {:error, term}
-  def declare(%{declare: false} = _exchange, _channel), do: :ok
-
   def declare(%{name: name, type: type, options: options}, channel) do
     Exchange.declare(
       channel,
