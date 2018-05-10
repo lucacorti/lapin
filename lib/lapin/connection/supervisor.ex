@@ -14,7 +14,7 @@ defmodule Lapin.Connection.Supervisor do
     configuration
     |> Enum.map(fn connection ->
       module = Keyword.get(connection, :module)
-      %{id: module, start: {Lapin.Connection, :start_link, [connection, [name: module]]}}
+      %{id: module, start: {Lapin.Connection, :start_link, [connection, [name: module]], [id: module]}}
     end)
     |> Supervisor.init(strategy: :one_for_one)
   end
