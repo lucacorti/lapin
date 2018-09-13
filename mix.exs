@@ -31,7 +31,8 @@ defmodule Lapin.Mixfile do
       {:credo, ">= 0.0.0", only: [:dev]},
       {:dialyxir, ">= 0.0.0", only: [:dev]},
       {:amqp, "~> 1.0"},
-      {:connection, "~> 1.0.0"}
+      {:connection, "~> 1.0.0"},
+      {:ranch_proxy_protocol, "~> 2.0", override: true},
     ]
   end
 
