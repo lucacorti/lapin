@@ -97,7 +97,7 @@ defmodule Lapin.Channel do
          queue_durable <- pattern.queue_durable(channel),
          {:ok, amqp_channel} <- AMQP.Channel.open(connection),
          :ok <-
-           AMQP.Exchange.declare(amqp_channel, exchange, exchange_type, durable: exchange_durable),
+           declare_exchange(amqp_channel, exchange, exchange_type, durable: exchange_durable),
          {:ok, _info} <-
            AMQP.Queue.declare(
              amqp_channel,
@@ -105,7 +105,7 @@ defmodule Lapin.Channel do
              durable: queue_durable,
              arguments: queue_arguments
            ),
-         :ok <- AMQP.Queue.bind(amqp_channel, queue, exchange, routing_key: routing_key),
+         :ok <- bind_to_exchange(amqp_channel, queue, exchange, routing_key: routing_key),
          {:ok, channel} <-
            setup(%{
              channel
@@ -195,6 +195,22 @@ defmodule Lapin.Channel do
       error ->
         error
     end
+  end
+
+  defp declare_exchange(_channel, nil = _exchange, _exchange_type, _options), do: :ok
+
+  defp declare_exchange(_channel, "" = _exchange, _exchange_type, _options), do: :ok
+
+  defp declare_exchange(channel, exchange, exchange_type, options) do
+    AMQP.Exchange.declare(channel, exchange, exchange_type, options)
+  end
+
+  defp bind_to_exchange(_channel, _queue, nil = _exchange, _options), do: :ok
+
+  defp bind_to_exchange(_channel, _queue, "" = _exchange, _options), do: :ok
+
+  defp bind_to_exchange(channel, queue, exchange, options) do
+    AMQP.Queue.bind(channel, queue, exchange, options)
   end
 
   defp channel_matches?(channel, consumer_tag) do
