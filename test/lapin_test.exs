@@ -55,6 +55,17 @@ defmodule LapinTest do
             queue: queue
           ]
         ]
+      ],
+      default_exchange: [
+        module: LapinTest.HelloWorld,
+        channels: [
+          [
+            role: :producer,
+            exchange: "",
+            queue: queue,
+            routing_key: queue,
+          ]
+        ]
       ]
     }
   end
@@ -81,5 +92,16 @@ defmodule LapinTest do
     {:ok, bad_host} = Lapin.Connection.start_link(ctx.bad_host)
     {:error, :not_connected} = Lapin.Connection.publish(bad_host, ctx.exchange, "", ctx.message)
     :ok = Lapin.Connection.close(bad_host)
+  end
+
+  test "hello_world_does_not_declare_default_exchange", ctx do
+    {:ok, default_exchange} = Lapin.Connection.start_link(ctx.default_exchange)
+    :ok = Lapin.Connection.close(default_exchange)
+  end
+
+  test "hello_world_can_publish_on_default_exchange", ctx do
+    {:ok, default_exchange} = Lapin.Connection.start_link(ctx.default_exchange)
+    :ok = Lapin.Connection.publish(default_exchange, "", ctx.queue, ctx.message)
+    :ok = Lapin.Connection.close(default_exchange)
   end
 end
