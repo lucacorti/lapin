@@ -243,7 +243,7 @@ defmodule Lapin.Connection do
         Logger.warn("Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown channel")
 
       {:error, error} ->
-        Logger.error("Error canceling consumer_tag '#{consumer_tag}': #{error}")
+        Logger.error("Error canceling consumer_tag '#{consumer_tag}': #{inspect(error)}")
     end
 
     {:stop, :normal, state}
@@ -389,7 +389,7 @@ defmodule Lapin.Connection do
     else
       {:error, error} ->
         Logger.error(fn ->
-          "Connection error: #{error} for #{module}, backing off for #{@backoff}"
+          "Connection error: #{inspect(error)} for #{module}, backing off for #{@backoff}"
         end)
 
         {:backoff, @backoff, state}
