@@ -21,3 +21,5 @@ erl_crash.dump
 
 # ElixirLS files
 /.elixir_ls
+
+/log
