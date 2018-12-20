@@ -3,6 +3,9 @@ defmodule Lapin.Queue do
   Lapin Queue
   """
 
+  alias AMQP.{Channel, Queue}
+  require Logger
+
   @typedoc "Queue"
   @type t :: %__MODULE__{
           name: String.t(),
@@ -13,9 +16,6 @@ defmodule Lapin.Queue do
   defstruct name: "",
             binds: [],
             options: []
-
-  alias AMQP.Queue
-  require Logger
 
   @spec new(Keyword.t()) :: %__MODULE__{}
   def new(attrs), do: struct(%__MODULE__{}, attrs)
