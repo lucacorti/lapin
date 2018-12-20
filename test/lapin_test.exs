@@ -19,10 +19,14 @@ defmodule LapinTest do
   use ExUnit.Case
   doctest Lapin
 
-  test "Supervisor starts correctly" do
-    Lapin.Connection.Supervisor
-    |> Process.whereis()
-    |> Process.alive?()
+  setup_all do
+    {:ok, pid} = Lapin.Supervisor.start_link()
+    %{supervisor: pid}
+  end
+
+  test "Supervisor starts correctly", %{supervisor: supervisor} do
+    assert supervisor
+      |> Process.alive?()
   end
 
   test "Publish message" do
