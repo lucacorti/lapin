@@ -25,10 +25,9 @@ defmodule LapinTest do
     %{}
   end
 
-  test "Supervisor starts correctly" do
-    Lapin.Connection.Supervisor
-    |> Process.whereis()
-    |> Process.alive?()
+  test "Supervisor starts correctly", %{supervisor: supervisor} do
+    assert supervisor
+           |> Process.alive?()
   end
 
   test "Publish message" do
