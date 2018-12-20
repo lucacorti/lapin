@@ -188,7 +188,7 @@ defmodule Lapin.Connection do
       ) do
     with producer when not is_nil(producer) <- Producer.get(producers, exchange),
          %Producer{pattern: pattern, channel: channel} <- producer,
-         mandatory <- pattern.mandatory(producer) |> IO.inspect,
+         mandatory <- pattern.mandatory(producer),
          persistent <- pattern.persistent(producer),
          options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
          meta <- %{content_type: Payload.content_type(payload)},
@@ -346,6 +346,7 @@ defmodule Lapin.Connection do
 
   defp consume_ack(true = _ack, channel, delivery_tag) do
     tag = "#{delivery_tag}"
+
     case Basic.ack(channel, delivery_tag) do
       :ok ->
         Logger.debug(fn -> "Consumed message #{tag} successfully, ACK sent" end)

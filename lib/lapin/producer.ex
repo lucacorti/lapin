@@ -110,7 +110,7 @@ defmodule Lapin.Producer do
   @doc """
   Find consumer by consumer_tag
   """
-  @spec get([t], String.t) :: t | {:error, term}
+  @spec get([t], String.t()) :: t | {:error, term}
   def get(producers, exchange) do
     Enum.find(producers, &(&1.exchange == exchange))
   end

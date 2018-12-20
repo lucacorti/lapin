@@ -26,7 +26,7 @@ defmodule LapinTest do
 
   test "Supervisor starts correctly", %{supervisor: supervisor} do
     assert supervisor
-      |> Process.alive?()
+           |> Process.alive?()
   end
 
   test "Publish message" do
