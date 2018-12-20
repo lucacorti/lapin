@@ -42,7 +42,7 @@ defmodule Lapin.Producer do
     quote do
       alias Lapin.Producer
 
-      @behaviour Lapin.Producer
+      @behaviour Producer
 
       @exchange nil
       @confirm false
@@ -57,7 +57,7 @@ defmodule Lapin.Producer do
 
       def persistent(%Producer{config: config}), do: Keyword.get(config, :persistent, @persistent)
 
-      defoverridable Lapin.Producer
+      defoverridable Producer
     end
   end
 
@@ -89,7 +89,7 @@ defmodule Lapin.Producer do
   @doc """
   Creates a producer from configuration
   """
-  @spec create(connection :: Connection.t(), config) :: t
+  @spec create(Connection.t(), config) :: t
   def create(connection, config) do
     pattern = Keyword.get(config, :pattern, Lapin.Producer.Config)
     producer = %__MODULE__{config: config, pattern: pattern}
@@ -109,7 +109,7 @@ defmodule Lapin.Producer do
   @doc """
   Find consumer by consumer_tag
   """
-  @spec get([t], Exchange.name()) :: t | nil
+  @spec get([t], String.t) :: t | {:error, term}
   def get(producers, exchange) do
     Enum.find(producers, &(&1.exchange == exchange))
   end

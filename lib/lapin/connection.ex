@@ -153,7 +153,7 @@ defmodule Lapin.Connection do
   @doc """
   Closes the connection
   """
-  @spec close(connection :: t) :: on_callback
+  @spec close(connection :: t) :: on_callback()
   def close(connection), do: GenServer.stop(connection)
 
   def terminate(_reason, %{connection: nil}), do: :ok
@@ -166,9 +166,9 @@ defmodule Lapin.Connection do
   Publishes a message to the specified exchange with the given routing_key
   """
   @spec publish(
-          connection :: t,
-          Channel.exchange(),
-          Channel.routing_key(),
+          connection :: t(),
+          String.t(),
+          String.t(),
           Payload.t(),
           options :: Keyword.t()
         ) :: on_callback
@@ -191,7 +191,7 @@ defmodule Lapin.Connection do
       ) do
     with producer when not is_nil(producer) <- Producer.get(producers, exchange),
          %Producer{pattern: pattern, channel: channel} <- producer,
-         mandatory <- pattern.mandatory(producer),
+         mandatory <- pattern.mandatory(producer) |> IO.inspect,
          persistent <- pattern.persistent(producer),
          options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
          meta <- %{content_type: Payload.content_type(payload)},
@@ -380,10 +380,6 @@ defmodule Lapin.Connection do
 
     with configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- AMQP.Connection.open(configuration),
-         producers <- Keyword.get(configuration, :producers, []),
-         producers <- Enum.map(producers, &Producer.create(connection, &1)),
-         consumers <- Keyword.get(configuration, :consumers, []),
-         consumers <- Enum.map(consumers, &Consumer.create(connection, &1)),
          {:ok, config_channel} <- Channel.open(connection),
          exchanges <- Keyword.get(configuration, :exchanges, []),
          exchanges <- Enum.map(exchanges, &Exchange.new/1),
@@ -429,6 +425,10 @@ defmodule Lapin.Connection do
                  {:halt, error}
              end
            end),
+         producers <- Keyword.get(configuration, :producers, []),
+         producers <- Enum.map(producers, &Producer.create(connection, &1)),
+         consumers <- Keyword.get(configuration, :consumers, []),
+         consumers <- Enum.map(consumers, &Consumer.create(connection, &1)),
          :ok <- Channel.close(config_channel) do
       Process.monitor(connection.pid)
 
