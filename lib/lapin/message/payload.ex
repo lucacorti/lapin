@@ -1,7 +1,7 @@
 defprotocol Lapin.Message.Payload do
   @moduledoc """
   You can use this protocol to implement a custom message payload transformation.
-  For example you could impelment a JSON message with a predefined structure by
+  For example you could implement a JSON message with a predefined structure by
   first implementing a struct for your payload:
 
   ```elixir
