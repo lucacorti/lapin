@@ -8,6 +8,11 @@ otp_release:
   - 20.3
   - 21.1
 
+sudo: required
+
+services:
+  - rabbitmq
+
 cache:
   directories:
     - ~/.mix
