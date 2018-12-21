@@ -29,7 +29,7 @@ defmodule LapinTest do
            |> Process.alive?()
   end
 
-  test "Publish message" do
+  test "Publish message via connection" do
     :ok =
       Lapin.Connection.publish(
         LapinTest.Worker,
@@ -39,12 +39,11 @@ defmodule LapinTest do
       )
   end
 
-  test "Error on publishing unroutable message" do
-    {:error, _} =
-      Lapin.Connection.publish(
-        LapinTest.Worker,
+  test "Publish message via worker" do
+    :ok =
+      LapinTest.Worker.publish(
         "test_exchange",
-        "bad_routing_key",
+        "test_routing_key",
         "msg"
       )
   end
