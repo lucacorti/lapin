@@ -13,6 +13,11 @@ sudo: required
 services:
   - rabbitmq
 
+sudo: required
+
+services:
+  - rabbitmq
+
 cache:
   directories:
     - ~/.mix
