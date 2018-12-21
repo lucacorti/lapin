@@ -17,7 +17,7 @@ defmodule Lapin.Connection do
   require Logger
 
   alias AMQP.{Basic, Channel, Confirm}
-  alias Lapin.{Exchange, Message, Consumer, Producer, Queue}
+  alias Lapin.{Consumer, Exchange, Message, Producer, Queue}
   alias Lapin.Message.Payload
 
   import Lapin.Utils, only: [check_mandatory_params: 2]
