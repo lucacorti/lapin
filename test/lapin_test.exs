@@ -51,6 +51,6 @@ defmodule LapinTest do
 
   test "Bad host gets error on publish" do
     {:error, :not_connected} =
-      Lapin.Connection.publish(LapinTest.BadHostHelloWorld, "test_badhost", "", "msg")
+      Lapin.Connection.publish(LapinTest.BadHostWorker, "test_badhost", "", "msg")
   end
 end
