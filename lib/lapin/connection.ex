@@ -15,7 +15,7 @@ defmodule Lapin.Connection do
   use Connection
 
   alias AMQP.{Basic, Channel, Confirm}
-  alias Lapin.{Exchange, Message, Consumer, Producer, Queue}
+  alias Lapin.{Consumer, Exchange, Message, Producer, Queue}
   alias Lapin.Message.Payload
   import Lapin.Utils, only: [check_mandatory_params: 2]
   require Logger
@@ -150,7 +150,7 @@ defmodule Lapin.Connection do
   @doc """
   Closes the connection
   """
-  @spec close(connection :: t) :: GenServer.on_callback()
+  @spec close(connection :: t) :: on_callback()
   def close(connection), do: GenServer.stop(connection)
 
   def terminate(_reason, %{connection: nil}), do: :ok
@@ -163,9 +163,9 @@ defmodule Lapin.Connection do
   Publishes a message to the specified exchange with the given routing_key
   """
   @spec publish(
-          connection :: t,
-          Channel.exchange(),
-          Channel.routing_key(),
+          connection :: t(),
+          String.t(),
+          String.t(),
           Payload.t(),
           options :: Keyword.t()
         ) :: on_callback
@@ -345,13 +345,15 @@ defmodule Lapin.Connection do
   end
 
   defp consume_ack(true = _ack, channel, delivery_tag) do
+    tag = "#{delivery_tag}"
+
     case Basic.ack(channel, delivery_tag) do
       :ok ->
-        Logger.debug(fn -> "Consumed message #{delivery_tag} successfully, ACK sent" end)
+        Logger.debug(fn -> "Consumed message #{tag} successfully, ACK sent" end)
         :ok
 
       error ->
-        Logger.debug(fn -> "ACK failed for message #{delivery_tag}: #{inspect(error)}" end)
+        Logger.debug(fn -> "ACK failed for message #{tag}: #{inspect(error)}" end)
         error
     end
   end
@@ -366,10 +368,6 @@ defmodule Lapin.Connection do
 
     with configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- AMQP.Connection.open(configuration),
-         producers <- Keyword.get(configuration, :producers, []),
-         producers <- Enum.map(producers, &Producer.create(connection, &1)),
-         consumers <- Keyword.get(configuration, :consumers, []),
-         consumers <- Enum.map(consumers, &Consumer.create(connection, &1)),
          {:ok, config_channel} <- Channel.open(connection),
          exchanges <- Keyword.get(configuration, :exchanges, []),
          exchanges <- Enum.map(exchanges, &Exchange.new/1),
@@ -415,6 +413,10 @@ defmodule Lapin.Connection do
                  {:halt, error}
              end
            end),
+         producers <- Keyword.get(configuration, :producers, []),
+         producers <- Enum.map(producers, &Producer.create(connection, &1)),
+         consumers <- Keyword.get(configuration, :consumers, []),
+         consumers <- Enum.map(consumers, &Consumer.create(connection, &1)),
          :ok <- Channel.close(config_channel) do
       Process.monitor(connection.pid)
 

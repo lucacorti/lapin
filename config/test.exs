@@ -32,10 +32,10 @@ config :lapin, :connections, [
         pattern: Lapin.Producer.WorkQueue,
         exchange: "test_exchange"
       ]
-    ],
+    ]
   ],
   [
-    module: LapinTest.BadHostHelloWorld,
+    module: LapinTest.BadHostWorker,
     uri: "amqp://thisisnotthedefault:nopass@nohosthere:9999",
   ]
 ]

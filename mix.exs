@@ -5,21 +5,24 @@ defmodule Lapin.Mixfile do
     [
       app: :lapin,
       version: "0.3.4",
-      elixir: "~> 1.5",
+      elixir: "~> 1.6",
       description: "Elixir RabbitMQ Client",
       source_url: "https://github.com/lucacorti/lapin",
       package: package(),
       docs: docs(),
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      dialyzer: [
+        plt_add_deps: :project,
+        ignore_warnings: ".dialyzer.ignore-warnings"
+      ]
     ]
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger],
-      mod: {Lapin.Application, []}
+      extra_applications: [:logger]
     ]
   end
 

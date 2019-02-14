@@ -3,6 +3,8 @@ defmodule Lapin.Exchange do
   Lapin Exchange
   """
 
+  alias AMQP.{Channel, Exchange, Queue}
+
   @type type :: :direct | :fanout | :topic
   @typedoc "Exchange"
   @type t :: %__MODULE__{
@@ -11,8 +13,6 @@ defmodule Lapin.Exchange do
           type: type,
           options: Keyword.t()
         }
-
-  alias AMQP.{Channel, Exchange, Queue}
 
   defstruct name: "",
             binds: [],

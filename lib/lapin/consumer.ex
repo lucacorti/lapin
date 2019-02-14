@@ -2,7 +2,7 @@ defmodule Lapin.Consumer do
   @moduledoc """
   Extensible behaviour to define pattern modules.
 
-  Lapin provides a number of submodules which impelment the patterns found in
+  Lapin provides a number of submodules which implement the patterns found in
   the [RabbitMQ Tutorials](http://www.rabbitmq.com/getstarted.html).
 
   ```
@@ -25,7 +25,7 @@ defmodule Lapin.Consumer do
   @type config :: Keyword.t()
 
   @typedoc "Consumer Prefetch"
-  @type prefetch_count :: Integer.t()
+  @type prefetch_count :: integer
 
   @doc """
   Consumer acknowledgements enabled
