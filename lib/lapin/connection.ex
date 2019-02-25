@@ -17,7 +17,7 @@ defmodule Lapin.Connection do
   alias AMQP.{Basic, Channel, Confirm}
   alias Lapin.{Consumer, Exchange, Message, Producer, Queue}
   alias Lapin.Message.Payload
-  import Lapin.Utils, only: [check_mandatory_params: 2]
+
   require Logger
 
   @typedoc """
@@ -540,4 +540,13 @@ defmodule Lapin.Connection do
   defp map_port(nil), do: @default_rabbitmq_port
   defp map_port(port) when is_binary(port), do: String.to_integer(port)
   defp map_port(port), do: port
+
+  def check_mandatory_params(configuration, params) do
+    if Enum.all?(params, &Keyword.has_key?(configuration, &1)) do
+      :ok
+    else
+      missing_params = Enum.reject(params, &Keyword.has_key?(configuration, &1))
+      {:error, :missing_params, missing_params}
+    end
+  end
 end
