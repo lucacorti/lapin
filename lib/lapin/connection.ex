@@ -541,7 +541,7 @@ defmodule Lapin.Connection do
   defp map_port(port) when is_binary(port), do: String.to_integer(port)
   defp map_port(port), do: port
 
-  def check_mandatory_params(configuration, params) do
+  defp check_mandatory_params(configuration, params) do
     if Enum.all?(params, &Keyword.has_key?(configuration, &1)) do
       :ok
     else
