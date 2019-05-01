@@ -2,6 +2,19 @@ defmodule LapinTest do
   use ExUnit.Case
   doctest Lapin
 
+  defmodule LapinTest.HelloWorld do
+    use Lapin.Connection
+    require Logger
+
+    def handle_deliver(channel, message) do
+      Logger.debug(fn ->
+        "Consuming message #{inspect(message, pretty: true)} received on #{
+          inspect(channel, pretty: true)
+        }"
+      end)
+    end
+  end
+
   setup_all do
     exchange = "test_exchange"
     queue = "test_queue"
