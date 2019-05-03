@@ -20,5 +20,5 @@ cache:
 
 script:
   - mix dialyzer
-  - mix credo --script
+  - mix credo --strict
   - mix test
