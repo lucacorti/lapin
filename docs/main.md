@@ -19,7 +19,7 @@ defp deps() do
 end
 ```
 
-And add the `Lapin.Supervisor.start_link` function under your application supervision tree:
+And add the `Lapin.Supervisor` under your application supervision tree:
 
 ```elixir
 children = [
@@ -65,8 +65,7 @@ run your application with `iex -S mix` and publish a message:
 ```elixir
 ...
 iex(1)> ExampleApp.Worker.publish("some_exchange", "routing_key", "payload")
-[debug] Published %Lapin.Message{meta: %{content_type: nil, mandatory: false, persistent: false}, payload: "payload"} on %Lap
-in.Channel{channel: %AMQP.Channel{conn: %AMQP.Connection{pid: #PID<0.212.0>}, pid: #PID<0.221.0>}, config: [exchange: "test_exchange", queue: "test_queue"], consumer_tag: nil, exchange: "some_exchange", pattern: Lapin.Pattern.Config, queue: "some_queue", routing_key: "routing_key"}
+[debug] Published %Lapin.Message{meta: %{content_type: nil, mandatory: false, persistent: false}, payload: "payload"} on %Lapin.Channel{channel: %AMQP.Channel{conn: %AMQP.Connection{pid: #PID<0.212.0>}, pid: #PID<0.221.0>}, config: [exchange: "test_exchange", queue: "test_queue"], consumer_tag: nil, exchange: "some_exchange", pattern: Lapin.Pattern.Config, queue: "some_queue", routing_key: "routing_key"}
 :ok
 [debug] Consuming message 1
 [debug] Consumed message 1 successfully, ACK sent
