@@ -6,9 +6,11 @@ defmodule Lapin.Exchange do
   alias AMQP.{Channel, Exchange, Queue}
 
   @type type :: :direct | :fanout | :topic
+  @type name :: String.t()
+
   @typedoc "Exchange"
   @type t :: %__MODULE__{
-          name: String.t(),
+          name: name,
           binds: [],
           declare: false,
           type: type,

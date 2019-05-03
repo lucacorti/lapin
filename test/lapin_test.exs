@@ -19,8 +19,6 @@ defmodule LapinTest do
     use Lapin.Connection
   end
 
-  @binary_msg "msg"
-
   setup_all do
     %{}
   end

@@ -15,13 +15,15 @@ defmodule Lapin.Producer do
   """
 
   alias AMQP.{Basic, Channel, Confirm, Connection}
+
   alias Lapin.Exchange
+
   require Logger
 
   @doc """
   Request publisher confirms (RabbitMQ only)
   """
-  @callback confirm(producer :: t()) :: boolean
+  @callback confirm(producer :: t()) :: boolean()
 
   @doc """
   Declare exchange
@@ -31,12 +33,12 @@ defmodule Lapin.Producer do
   @doc """
   Request message persistence when publishing
   """
-  @callback persistent(producer :: t()) :: boolean
+  @callback persistent(producer :: t()) :: boolean()
 
   @doc """
   Request message mandatory routing when publishing
   """
-  @callback mandatory(producer :: t()) :: boolean
+  @callback mandatory(producer :: t()) :: boolean()
 
   defmacro __using__([]) do
     quote do
@@ -77,14 +79,15 @@ defmodule Lapin.Producer do
 
   @typedoc "Lapin Producer"
   @type t :: %__MODULE__{
-          channel: Channel,
+          channel: Channel.t,
           pattern: atom,
           config: config,
-          exchange: String.t()
+          exchange: String.t
         }
   defstruct channel: nil,
             pattern: nil,
-            config: nil
+            config: nil,
+            exchange: nil
 
   @doc """
   Creates a producer from configuration
@@ -109,9 +112,31 @@ defmodule Lapin.Producer do
   @doc """
   Find consumer by consumer_tag
   """
-  @spec get([t], String.t()) :: t | {:error, term}
+  @spec get([t], String.t()) :: {:ok, t} | {:error, :not_found}
   def get(producers, exchange) do
-    Enum.find(producers, &(&1.exchange == exchange))
+    case Enum.find(producers, &(&1.exchange == exchange)) do
+      nil -> {:error, :not_found}
+      producer -> {:ok, producer}
+    end
+  end
+
+  @doc """
+  Publish message
+  """
+  @spec publish(t, Exchange.name, Exchange.routing_key, Message.payload(), Keyword.t()) :: :ok | {:error, term}
+  def publish(%{channel: channel}, exchange, routing_key, payload, options) do
+    Basic.publish(channel, exchange, routing_key, payload, options)
+  end
+
+  @doc """
+  Wait for publish confirmation
+  """
+  @spec confirm(t) :: boolean()
+  def confirm(%{channel: channel}) do
+    case Confirm.wait_for_confirms(channel) do
+      true -> true
+      _ -> false
+    end
   end
 
   defp set_confirm(_producer, false = _confirm), do: :ok

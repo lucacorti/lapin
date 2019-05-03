@@ -14,9 +14,10 @@ defmodule Lapin.Consumer do
   ```
   """
 
+  require Logger
+
   alias AMQP.{Basic, Channel, Connection}
   alias Lapin.Queue
-  require Logger
 
   @typedoc "Consumer Tag"
   @type consumer_tag :: String.t()
@@ -62,21 +63,22 @@ defmodule Lapin.Consumer do
 
   @typedoc "Lapin Consumer Behaviour"
   @type t :: %__MODULE__{
-          channel: Channel,
+          channel: Channel.t,
           consumer_tag: consumer_tag(),
           pattern: atom,
           config: config(),
-          queue: String.t()
+          queue: String.t
         }
   defstruct channel: nil,
             consumer_tag: nil,
             pattern: nil,
-            config: nil
+            config: nil,
+            queue: nil
 
   @doc """
   Creates a consumer from configuration
   """
-  @spec create(connection :: Connection.t(), config) :: t
+  @spec create(Connection.t(), config) :: t
   def create(connection, config) do
     pattern = Keyword.get(config, :pattern, Lapin.Pattern.Config)
     consumer = %__MODULE__{config: config, pattern: pattern}
@@ -97,9 +99,39 @@ defmodule Lapin.Consumer do
   @doc """
   Find consumer by consumer_tag
   """
-  @spec get([t], consumer_tag) :: t | nil
+  @spec get([t], consumer_tag) :: {:ok, t} | {:error, :not_found}
   def get(consumers, consumer_tag) do
-    Enum.find(consumers, &(&1.consumer_tag == consumer_tag))
+    case Enum.find(consumers, &(&1.consumer_tag == consumer_tag)) do
+      nil -> {:error, :not_found}
+      channel -> {:ok, channel}
+    end
+  end
+
+  @doc """
+  Reject message
+  """
+  @spec reject_message(t, integer, boolean()) :: :ok | {:error, term}
+  def reject_message(%{channel: channel}, delivery_tag, requeue) do
+    with :ok <- Basic.reject(channel, delivery_tag, requeue: requeue) do
+      Logger.debug("#{if requeue, do: "Requeued", else: "Rejected"} message #{delivery_tag}")
+    else
+      error ->
+        Logger.error(
+          "Error #{if requeue, do: "requeueing", else: "rejecting"} message #{delivery_tag}: #{
+            inspect(error)
+          }"
+        )
+
+        error
+    end
+  end
+
+  @doc """
+  ACK message consumption
+  """
+  @spec ack_message(t, integer) :: :ok | {:error, term}
+  def ack_message(%{channel: channel}, delivery_tag) do
+    Basic.ack(channel, delivery_tag)
   end
 
   defp consume(_consumer, nil = _queue), do: {:ok, nil}

@@ -16,7 +16,7 @@ defmodule Lapin.Connection do
 
   require Logger
 
-  alias AMQP.{Basic, Channel, Confirm}
+  alias AMQP.Channel
   alias Lapin.{Consumer, Exchange, Message, Producer, Queue}
   alias Lapin.Message.Payload
 
@@ -187,17 +187,16 @@ defmodule Lapin.Connection do
         _from,
         %{producers: producers, module: module} = state
       ) do
-    with producer when not is_nil(producer) <- Producer.get(producers, exchange),
-         %Producer{pattern: pattern, channel: channel} <- producer,
+    with {:ok, %Producer{pattern: pattern} = producer} <- Producer.get(producers, exchange),
          mandatory <- pattern.mandatory(producer),
          persistent <- pattern.persistent(producer),
          options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
          meta <- %{content_type: Payload.content_type(payload)},
          {:ok, payload} <- Payload.encode(payload),
-         :ok <- Basic.publish(channel, exchange, routing_key, payload, options) do
+         :ok <- Producer.publish(producer, exchange, routing_key, payload, options) do
       message = %Message{meta: Enum.into(options, meta), payload: payload}
 
-      if not pattern.confirm(producer) or Channel.confirm(channel) do
+      if not pattern.confirm(producer) or Producer.confirm(producer) do
         Logger.debug(fn -> "Published #{inspect(message)} on #{inspect(producer)}" end)
         {:reply, module.handle_publish(producer, message), state}
       else
@@ -303,10 +302,10 @@ defmodule Lapin.Connection do
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    with consumer when not is_nil(consumer) <- Consumer.get(consumers, consumer_tag) do
+    with {:ok, consumer} <- Consumer.get(consumers, consumer_tag) do
       spawn(fn -> consume(module, consumer, message) end)
     else
-      nil ->
+      {:error, :not_found} ->
         Logger.error("Error processing message #{inspect(message)}, no local consumer")
     end
 
@@ -315,7 +314,7 @@ defmodule Lapin.Connection do
 
   defp consume(
          module,
-         %Consumer{channel: channel, pattern: pattern} = consumer,
+         %Consumer{pattern: pattern} = consumer,
          %Message{
            meta: %{delivery_tag: delivery_tag, redelivered: redelivered} = meta,
            payload: payload
@@ -329,27 +328,27 @@ defmodule Lapin.Connection do
          message <- %Message{message | meta: meta, payload: payload},
          :ok <- module.handle_deliver(consumer, message) do
       Logger.debug(fn -> "Consuming message #{delivery_tag}" end)
-      consume_ack(consumer_ack, channel, delivery_tag)
+      consume_ack(ack, consumer, delivery_tag)
     else
       {:reject, reason} ->
-        with :ok <- Channel.reject(channel, delivery_tag, false) do
+        with :ok <- Consumer.reject_message(consumer, delivery_tag, false) do
           Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
         else
-          error ->
-            Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
+          {:error, reason} ->
+            Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(reason)}")
         end
 
       reason ->
-        with :ok <- Channel.reject(channel, delivery_tag, not redelivered) do
+        with :ok <- Consumer.reject_message(consumer, delivery_tag, not redelivered) do
           Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
         else
-          error ->
-            Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
+          {:error, reason} ->
+            Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(reason)}")
         end
     end
   rescue
     exception ->
-      with :ok <- Channel.reject(channel, delivery_tag, not redelivered) do
+      with :ok <- Consumer.reject_message(consumer, delivery_tag, not redelivered) do
         Logger.error("Rejected message #{delivery_tag}: #{inspect(exception)}")
       else
         error ->
@@ -357,8 +356,8 @@ defmodule Lapin.Connection do
       end
   end
 
-  defp consume_ack(true = _ack, channel, delivery_tag) do
-    with :ok <- Channel.ack(channel, delivery_tag) do
+  defp consume_ack(true = _ack, consumer, delivery_tag) do
+    with :ok <- Consumer.ack_message(consumer, delivery_tag) do
       Logger.debug("Consumed message #{delivery_tag} successfully, ACK sent")
       :ok
     else
