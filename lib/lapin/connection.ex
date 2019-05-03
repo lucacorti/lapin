@@ -185,7 +185,8 @@ defmodule Lapin.Connection do
         _from,
         %{channels: channels, module: module} = state
       ) do
-    with {:ok, %Channel{pattern: pattern} = channel} <- Channel.get(channels, exchange, routing_key, :producer),
+    with {:ok, %Channel{pattern: pattern} = channel} <-
+           Channel.get(channels, exchange, routing_key, :producer),
          mandatory <- pattern.publisher_mandatory(channel),
          persistent <- pattern.publisher_persistent(channel),
          options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
@@ -216,7 +217,9 @@ defmodule Lapin.Connection do
 
       {:error, :channel_not_found} ->
         error =
-          "Error publishing: no channel for exchange '#{exchange}' with routing key '#{routing_key}'"
+          "Error publishing: no channel for exchange '#{exchange}' with routing key '#{
+            routing_key
+          }'"
 
         Logger.debug(fn -> error end)
         {:reply, {:error, error}, state}
@@ -368,7 +371,6 @@ defmodule Lapin.Connection do
         error ->
           Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
       end
-
   end
 
   defp consume_ack(true = _consumer_ack, channel, delivery_tag) do
@@ -389,17 +391,19 @@ defmodule Lapin.Connection do
 
   def connect(_info, %{configuration: configuration} = state) do
     module = Keyword.get(configuration, :module)
+
     with channels <- Keyword.get(configuration, :channels, []),
          configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- AMQP.Connection.open(configuration),
-         channels <- Enum.reduce_while(channels, [], fn channel, acc ->
-           with {:ok, channel} <- Channel.create(connection, channel) do
-             {:cont, [channel | acc]}
-           else
-             {:error, _error} ->
-               {:cont, acc}
-           end
-         end) do
+         channels <-
+           Enum.reduce_while(channels, [], fn channel, acc ->
+             with {:ok, channel} <- Channel.create(connection, channel) do
+               {:cont, [channel | acc]}
+             else
+               {:error, _error} ->
+                 {:cont, acc}
+             end
+           end) do
       Process.monitor(connection.pid)
       {:ok, %{state | module: module, channels: channels, connection: connection}}
     else

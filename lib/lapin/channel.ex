@@ -58,7 +58,7 @@ defmodule Lapin.Channel do
   @type config :: Keyword.t()
 
   @type t :: %__MODULE__{
-          amqp_channel: AMQP.Channel.t,
+          amqp_channel: AMQP.Channel.t(),
           consumer_tag: consumer_tag,
           pattern: Lapin.Pattern.t(),
           role: role,
@@ -120,11 +120,20 @@ defmodule Lapin.Channel do
     else
       {:error, :missing_params, missing_params} ->
         params = Enum.join(missing_params, ", ")
-        Logger.error("Error creating channel config #{inspect(config, pretty: true)}: missing params: #{params}")
+
+        Logger.error(
+          "Error creating channel config #{inspect(config, pretty: true)}: missing params: #{
+            params
+          }"
+        )
+
         {:error, :missing_params}
 
       {:error, error} ->
-        Logger.error("Error creating channel from config #{inspect(config, pretty: true)}: #{inspect(error)}")
+        Logger.error(
+          "Error creating channel from config #{inspect(config, pretty: true)}: #{inspect(error)}"
+        )
+
         {:error, error}
     end
   end
@@ -137,6 +146,7 @@ defmodule Lapin.Channel do
     case Enum.find(channels, &channel_matches?(&1, consumer_tag)) do
       nil ->
         {:error, :channel_not_found}
+
       channel ->
         {:ok, channel}
     end
@@ -150,6 +160,7 @@ defmodule Lapin.Channel do
     case Enum.find(channels, &channel_matches?(&1, exchange, routing_key, role)) do
       nil ->
         {:error, :channel_not_found}
+
       channel ->
         {:ok, channel}
     end
@@ -164,7 +175,12 @@ defmodule Lapin.Channel do
       Logger.debug("#{if requeue, do: "Requeued", else: "Rejected"} message #{delivery_tag}")
     else
       error ->
-        Logger.error("Error #{if requeue, do: "requeueing", else: "rejecting"} message #{delivery_tag}: #{inspect(error)}")
+        Logger.error(
+          "Error #{if requeue, do: "requeueing", else: "rejecting"} message #{delivery_tag}: #{
+            inspect(error)
+          }"
+        )
+
         error
     end
   end
@@ -172,7 +188,7 @@ defmodule Lapin.Channel do
   @doc """
   Publish message
   """
-  @spec publish(t, exchange, routing_key, Message.payload, Keyword.t) :: :ok | {:error, term}
+  @spec publish(t, exchange, routing_key, Message.payload(), Keyword.t()) :: :ok | {:error, term}
   def publish(%{amqp_channel: amqp_channel}, exchange, routing_key, payload, options) do
     Basic.publish(amqp_channel, exchange, routing_key, payload, options)
   end
@@ -202,8 +218,7 @@ defmodule Lapin.Channel do
     with consumer_prefetch <- pattern.consumer_prefetch(channel),
          consumer_ack <- pattern.consumer_ack(channel),
          :ok <- set_consumer_prefetch(amqp_channel, consumer_prefetch),
-         {:ok, consumer_tag} =
-           Basic.consume(amqp_channel, queue, nil, no_ack: not consumer_ack),
+         {:ok, consumer_tag} = Basic.consume(amqp_channel, queue, nil, no_ack: not consumer_ack),
          channel <- %{channel | consumer_tag: consumer_tag} do
       Logger.debug(fn -> "Consumer '#{consumer_tag}' bound to queue '#{queue}'" end)
       {:ok, channel}
