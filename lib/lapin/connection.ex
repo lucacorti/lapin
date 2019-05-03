@@ -378,54 +378,12 @@ defmodule Lapin.Connection do
     with configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- AMQP.Connection.open(configuration),
          {:ok, config_channel} <- Channel.open(connection),
-         exchanges <- Keyword.get(configuration, :exchanges, []),
-         exchanges <- Enum.map(exchanges, &Exchange.new/1),
-         :ok <-
-           Enum.reduce_while(exchanges, :ok, fn exchange, acc ->
-             case Exchange.declare(exchange, config_channel) do
-               :ok ->
-                 {:cont, acc}
-
-               error ->
-                 {:halt, error}
-             end
-           end),
-         queues <- Keyword.get(configuration, :queues, []),
-         queues <- Enum.map(queues, &Queue.new/1),
-         :ok <-
-           Enum.reduce_while(queues, :ok, fn queue, acc ->
-             case Queue.declare(queue, config_channel) do
-               :ok ->
-                 {:cont, acc}
-
-               error ->
-                 {:halt, error}
-             end
-           end),
-         :ok <-
-           Enum.reduce_while(exchanges, :ok, fn exchange, acc ->
-             case Exchange.bind(exchange, config_channel) do
-               :ok ->
-                 {:cont, acc}
-
-               error ->
-                 {:halt, error}
-             end
-           end),
-         :ok <-
-           Enum.reduce_while(queues, :ok, fn queue, acc ->
-             case Queue.bind(queue, config_channel) do
-               :ok ->
-                 {:cont, acc}
-
-               error ->
-                 {:halt, error}
-             end
-           end),
-         producers <- Keyword.get(configuration, :producers, []),
-         producers <- Enum.map(producers, &Producer.create(connection, &1)),
-         consumers <- Keyword.get(configuration, :consumers, []),
-         consumers <- Enum.map(consumers, &Consumer.create(connection, &1)),
+         {:ok, exchanges} <- declare_exchanges(configuration, config_channel),
+         {:ok, queues} <- declare_queues(configuration, config_channel),
+         :ok <- bind_exchanges(exchanges, config_channel),
+         :ok <- bind_queues(queues, config_channel),
+         {:ok, producers} <- create_producers(configuration, connection),
+         {:ok, consumers} <- create_consumers(configuration, connection),
          :ok <- Channel.close(config_channel) do
       Process.monitor(connection.pid)
 
@@ -445,6 +403,42 @@ defmodule Lapin.Connection do
 
         {:backoff, @backoff, state}
     end
+  end
+
+  defp declare_exchanges(configuration, channel) do
+    exchanges = configuration
+    |> Keyword.get(:exchanges, [])
+    |> Enum.map(&Exchange.new/1)
+
+    {Enum.each(exchanges, &Exchange.declare(&1, channel)), exchanges}
+  end
+
+  defp bind_exchanges(exchanges, channel), do: Enum.each(exchanges, &Exchange.bind(&1, channel))
+
+  defp declare_queues(configuration, channel) do
+    queues = configuration
+    |> Keyword.get(:queues, [])
+    |> Enum.map(&Queue.new/1)
+
+    {Enum.each(queues, &Queue.declare(&1, channel)), queues}
+  end
+
+  defp bind_queues(queues, channel), do: Enum.each(queues, &Queue.bind(&1, channel))
+
+  defp create_producers(configuration, connection) do
+    producers = configuration
+    |> Keyword.get(:producers, [])
+    |> Enum.map(&Producer.create(connection, &1))
+
+    {:ok, producers}
+  end
+
+  defp create_consumers(configuration, connection) do
+    consumers = configuration
+    |> Keyword.get(:consumers, [])
+    |> Enum.map(&Consumer.create(connection, &1))
+
+    {:ok, consumers}
   end
 
   defp cleanup_configuration(configuration) do
