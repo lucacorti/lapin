@@ -143,7 +143,7 @@ defmodule Lapin.Connection do
   end
 
   def init(configuration) do
-  Process.flag(:trap_exit, true)
+    Process.flag(:trap_exit, true)
     {:connect, :init,
      %{configuration: configuration, consumers: [], producers: [], connection: nil, module: nil}}
   end

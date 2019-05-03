@@ -2,7 +2,7 @@ defmodule LapinTest do
   use ExUnit.Case
   doctest Lapin
 
-  defmodule LapinTest.Worker do
+  defmodule Worker do
     use Lapin.Connection
     require Logger
 
@@ -15,12 +15,13 @@ defmodule LapinTest do
     end
   end
 
-  defmodule LapinTest.BadHostWorker do
+  defmodule BadHostWorker do
     use Lapin.Connection
   end
 
   setup_all do
-    %{}
+    {:ok, pid} = Lapin.Supervisor.start_link()
+    %{supervisor: pid}
   end
 
   test "Supervisor starts correctly", %{supervisor: supervisor} do

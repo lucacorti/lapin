@@ -1,7 +1,5 @@
 use Mix.Config
 
-alias Lapin.{Exchange, Queue}
-
 config :lapin, :connections, [
   [
     module: LapinTest.Worker,

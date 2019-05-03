@@ -14,11 +14,10 @@ defmodule Lapin.Producer do
   ```
   """
 
-  alias AMQP.{Basic, Channel, Confirm, Connection}
-
-  alias Lapin.Exchange
-
   require Logger
+
+  alias AMQP.{Basic, Channel, Confirm, Connection}
+  alias Lapin.Exchange
 
   @doc """
   Request publisher confirms (RabbitMQ only)
