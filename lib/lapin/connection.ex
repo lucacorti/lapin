@@ -215,7 +215,7 @@ defmodule Lapin.Connection do
         {:basic_cancel, %{consumer_tag: consumer_tag}},
         %{consumers: consumers, module: module} = state
       ) do
-    with consumer when not is_nil(consumer) <- Consumer.get(consumers, consumer_tag) do
+    with {:ok, consumer} <- Consumer.get(consumers, consumer_tag) do
       Logger.debug(fn -> "Broker cancelled consumer for #{inspect(consumer)}" end)
       module.handle_cancel(consumer)
     else
@@ -235,7 +235,7 @@ defmodule Lapin.Connection do
         {:basic_cancel_ok, %{consumer_tag: consumer_tag}},
         %{consumers: consumers, module: module} = state
       ) do
-    with consumer when not is_nil(consumer) <- Consumer.get(consumers, consumer_tag),
+    with {:ok, consumer} <- Consumer.get(consumers, consumer_tag),
          :ok <- module.handle_cancel_ok(consumer) do
       Logger.debug(fn -> "Broker confirmed cancelling consumer for #{inspect(consumer)}" end)
     else
@@ -255,7 +255,7 @@ defmodule Lapin.Connection do
         {:basic_consume_ok, %{consumer_tag: consumer_tag}},
         %{consumers: consumers, module: module} = state
       ) do
-    with consumer when not is_nil(consumer) <- Consumer.get(consumers, consumer_tag),
+    with {:ok, consumer} <- Consumer.get(consumers, consumer_tag),
          :ok <- module.handle_consume_ok(consumer) do
       Logger.debug(fn -> "Broker registered consumer for #{inspect(consumer)}" end)
     else
@@ -277,7 +277,7 @@ defmodule Lapin.Connection do
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    with producer when not is_nil(producer) <- Producer.get(producers, exchange),
+    with {:ok, producer} <- Producer.get(producers, exchange),
          :ok <- module.handle_return(producer, message) do
       Logger.debug(fn -> "Broker returned message #{inspect(message)}" end)
     else
