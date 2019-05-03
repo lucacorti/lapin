@@ -11,7 +11,11 @@ defmodule Lapin.Mixfile do
       package: package(),
       docs: docs(),
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      dialyzer: [
+        plt_add_deps: :project,
+        ignore_warnings: ".dialyzer.ignore-warnings"
+      ]
     ]
   end
 
