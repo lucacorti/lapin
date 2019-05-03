@@ -239,7 +239,7 @@ defmodule Lapin.Connection do
          :ok <- module.handle_cancel_ok(consumer) do
       Logger.debug(fn -> "Broker confirmed cancelling consumer for #{inspect(consumer)}" end)
     else
-      {:error, :channel_not_found} ->
+      {:error, :not_found} ->
         Logger.debug(fn ->
           "Broker confirmed cancelling consumer for locally unknown tag '#{consumer_tag}'"
         end)
@@ -259,7 +259,7 @@ defmodule Lapin.Connection do
          :ok <- module.handle_consume_ok(consumer) do
       Logger.debug(fn -> "Broker registered consumer for #{inspect(consumer)}" end)
     else
-      {:error, :channel_not_found} ->
+      {:error, :not_found} ->
         Logger.warn(
           "Broker registered consumer_tag '#{consumer_tag}' for locally unknown consumer"
         )
@@ -281,7 +281,7 @@ defmodule Lapin.Connection do
          :ok <- module.handle_return(producer, message) do
       Logger.debug(fn -> "Broker returned message #{inspect(message)}" end)
     else
-      {:error, :channel_not_found} ->
+      {:error, :not_found} ->
         Logger.warn("Broker returned message #{inspect(message)} for locally unknown channel")
 
       error ->
