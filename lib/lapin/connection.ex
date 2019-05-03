@@ -16,9 +16,9 @@ defmodule Lapin.Connection do
 
   require Logger
 
-  import Lapin.Utils, only: [check_mandatory_params: 2]
+  alias Lapin.{Channel, Message}
 
-  alias Lapin.{Message, Channel}
+  import Lapin.Utils, only: [check_mandatory_params: 2]
 
   @typedoc """
   Connection configuration
@@ -149,7 +149,7 @@ defmodule Lapin.Connection do
   @doc """
   Closes the connection
   """
-  @spec close(connection :: t) :: GenServer.on_callback()
+  @spec close(connection :: t) :: on_callback
   def close(connection), do: GenServer.stop(connection)
 
   def terminate(_reason, %{connection: nil}), do: :ok
@@ -185,20 +185,17 @@ defmodule Lapin.Connection do
         _from,
         %{channels: channels, module: module} = state
       ) do
-    with channel when not is_nil(channel) <-
-           Channel.get(channels, exchange, routing_key, :producer),
-         %Channel{pattern: pattern} <- channel,
-         amqp_channel when not is_nil(amqp_channel) <- channel.amqp_channel,
+    with {:ok, %Channel{pattern: pattern} = channel} <- Channel.get(channels, exchange, routing_key, :producer),
          mandatory <- pattern.publisher_mandatory(channel),
          persistent <- pattern.publisher_persistent(channel),
          options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
          content_type <- Message.Payload.content_type(payload),
          meta <- %{content_type: content_type},
          {:ok, payload} <- Message.Payload.encode(payload),
-         :ok <- AMQP.Basic.publish(amqp_channel, exchange, routing_key, payload, options) do
+         :ok <- Channel.publish(channel, exchange, routing_key, payload, options) do
       message = %Message{meta: Enum.into(options, meta), payload: payload}
 
-      if not pattern.publisher_confirm(channel) or AMQP.Confirm.wait_for_confirms(amqp_channel) do
+      if not pattern.publisher_confirm(channel) or Channel.confirm(channel) do
         Logger.debug(fn -> "Published #{inspect(message)} on #{inspect(channel)}" end)
         {:reply, module.handle_publish(channel, message), state}
       else
@@ -217,18 +214,16 @@ defmodule Lapin.Connection do
         Logger.error(error)
         {:reply, {:error, error}, state}
 
-      nil ->
+      {:error, :channel_not_found} ->
         error =
-          "Error publishing message: no channel for exchange '#{exchange}' with routing key '#{
-            routing_key
-          }'"
+          "Error publishing: no channel for exchange '#{exchange}' with routing key '#{routing_key}'"
 
         Logger.debug(fn -> error end)
         {:reply, {:error, error}, state}
 
-      {:error, error} ->
-        Logger.debug(fn -> "Error sending message: #{inspect(error)}" end)
-        {:reply, {:error, error}, state}
+      {:error, reason} ->
+        Logger.debug(fn -> "Error sending message: #{inspect(reason)}" end)
+        {:reply, {:error, reason}, state}
     end
   end
 
@@ -236,11 +231,11 @@ defmodule Lapin.Connection do
         {:basic_cancel, %{consumer_tag: consumer_tag}},
         %{channels: channels, module: module} = state
       ) do
-    with channel when not is_nil(channel) <- Channel.get(channels, consumer_tag) do
+    with {:ok, channel} <- Channel.get(channels, consumer_tag) do
       Logger.debug(fn -> "Broker cancelled consumer for #{inspect(channel)}" end)
       module.handle_cancel(channel)
     else
-      nil ->
+      {:error, :channel_not_found} ->
         Logger.warn("Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown channel")
 
       {:error, error} ->
@@ -254,11 +249,11 @@ defmodule Lapin.Connection do
         {:basic_cancel_ok, %{consumer_tag: consumer_tag}},
         %{channels: channels, module: module} = state
       ) do
-    with channel when not is_nil(channel) <- Channel.get(channels, consumer_tag),
+    with {:ok, channel} <- Channel.get(channels, consumer_tag),
          :ok <- module.handle_cancel_ok(channel) do
       Logger.debug(fn -> "Broker confirmed cancelling consumer for #{inspect(channel)}" end)
     else
-      nil ->
+      {:error, :channel_not_found} ->
         Logger.debug(fn ->
           "Broker confirmed cancelling consumer for locally unknown tag '#{consumer_tag}'"
         end)
@@ -274,11 +269,11 @@ defmodule Lapin.Connection do
         {:basic_consume_ok, %{consumer_tag: consumer_tag}},
         %{channels: channels, module: module} = state
       ) do
-    with channel when not is_nil(channel) <- Channel.get(channels, consumer_tag),
+    with {:ok, channel} <- Channel.get(channels, consumer_tag),
          :ok <- module.handle_consume_ok(channel) do
       Logger.debug(fn -> "Broker registered consumer for #{inspect(channel)}" end)
     else
-      nil ->
+      {:error, :channel_not_found} ->
         Logger.warn(
           "Broker registered consumer_tag '#{consumer_tag}' for locally unknown channel"
         )
@@ -296,12 +291,11 @@ defmodule Lapin.Connection do
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    with channel when not is_nil(channel) <-
-           Channel.get(channels, exchange, routing_key, :producer),
+    with {:ok, channel} <- Channel.get(channels, exchange, routing_key, :producer),
          :ok <- module.handle_return(channel, message) do
       Logger.debug(fn -> "Broker returned message #{inspect(message)}" end)
     else
-      nil ->
+      {:error, :channel_not_found} ->
         Logger.warn("Broker returned message #{inspect(message)} for locally unknown channel")
 
       error ->
@@ -322,10 +316,10 @@ defmodule Lapin.Connection do
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    with channel when not is_nil(channel) <- Channel.get(channels, consumer_tag) do
+    with {:ok, channel} <- Channel.get(channels, consumer_tag) do
       spawn(fn -> consume(module, channel, meta, payload) end)
     else
-      nil ->
+      {:error, :channel_not_found} ->
         Logger.error("Error processing message #{inspect(message)}, no local channel")
     end
 
@@ -348,33 +342,47 @@ defmodule Lapin.Connection do
          message <- %Message{message | payload: payload},
          :ok <- module.handle_deliver(channel, message) do
       Logger.debug(fn -> "Consuming message #{delivery_tag}" end)
-      consume_ack(consumer_ack, channel.amqp_channel, delivery_tag)
+      consume_ack(consumer_ack, channel, delivery_tag)
     else
       {:reject, reason} ->
-        AMQP.Basic.reject(channel.amqp_channel, delivery_tag, requeue: false)
-        Logger.debug(fn -> "Rejected message #{delivery_tag}: #{inspect(reason)}" end)
+        with :ok <- Channel.reject(channel, delivery_tag, false) do
+          Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
+        else
+          error ->
+            Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
+        end
 
       reason ->
-        AMQP.Basic.reject(channel.amqp_channel, delivery_tag, requeue: not redelivered)
-        Logger.debug(fn -> "Requeued message #{delivery_tag}: #{inspect(reason)}" end)
+        with :ok <- Channel.reject(channel, delivery_tag, not redelivered) do
+          Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
+        else
+          error ->
+            Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
+        end
     end
   rescue
     exception ->
-      AMQP.Basic.reject(channel.amqp_channel, delivery_tag, requeue: not redelivered)
-      Logger.error("Rejected message #{delivery_tag}: #{inspect(exception)}")
+      with :ok <- Channel.reject(channel, delivery_tag, not redelivered) do
+        Logger.error("Rejected message #{delivery_tag}: #{inspect(exception)}")
+      else
+        error ->
+          Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
+      end
+
   end
 
-  defp consume_ack(true = _consumer_ack, amqp_channel, delivery_tag) do
-    if AMQP.Basic.ack(amqp_channel, delivery_tag) do
-      Logger.debug(fn -> "Consumed message #{delivery_tag} successfully, ACK sent" end)
+  defp consume_ack(true = _consumer_ack, channel, delivery_tag) do
+    with :ok <- Channel.ack(channel, delivery_tag) do
+      Logger.debug("Consumed message #{delivery_tag} successfully, ACK sent")
       :ok
     else
-      Logger.debug(fn -> "ACK failed for message #{delivery_tag}" end)
-      :error
+      error ->
+        Logger.debug("ACK failed for message #{delivery_tag}")
+        error
     end
   end
 
-  defp consume_ack(false = _consumer_ack, _amqp_channel, delivery_tag) do
+  defp consume_ack(false = _consumer_ack, _channel, delivery_tag) do
     Logger.debug(fn -> "Consumed message #{delivery_tag}, ACK not required" end)
     :ok
   end
@@ -384,7 +392,14 @@ defmodule Lapin.Connection do
     with channels <- Keyword.get(configuration, :channels, []),
          configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- AMQP.Connection.open(configuration),
-         channels <- Enum.map(channels, &Channel.create(connection, &1)) do
+         channels <- Enum.reduce_while(channels, [], fn channel, acc ->
+           with {:ok, channel} <- Channel.create(connection, channel) do
+             {:cont, [channel | acc]}
+           else
+             {:error, _error} ->
+               {:cont, acc}
+           end
+         end) do
       Process.monitor(connection.pid)
       {:ok, %{state | module: module, channels: channels, connection: connection}}
     else

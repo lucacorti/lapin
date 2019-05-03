@@ -5,6 +5,9 @@ defmodule Lapin.Channel do
 
   require Logger
 
+  alias AMQP.{Basic, Confirm}
+  alias Lapin.Message
+
   import Lapin.Utils, only: [check_mandatory_params: 2]
 
   @typedoc "Channel role"
@@ -26,7 +29,7 @@ defmodule Lapin.Channel do
   @type consumer_tag :: String.t()
 
   @typedoc "Consumer Prefetch"
-  @type consumer_prefetch :: Integer.t() | nil
+  @type consumer_prefetch :: integer() | nil
 
   @typedoc """
   Channel configuration
@@ -55,7 +58,7 @@ defmodule Lapin.Channel do
   @type config :: Keyword.t()
 
   @type t :: %__MODULE__{
-          amqp_channel: AMQP.Channel,
+          amqp_channel: AMQP.Channel.t,
           consumer_tag: consumer_tag,
           pattern: Lapin.Pattern.t(),
           role: role,
@@ -76,7 +79,7 @@ defmodule Lapin.Channel do
   @doc """
   Creates a channel from configuration
   """
-  @spec create(connection :: AMQP.Connection.t(), config) :: t
+  @spec create(connection :: AMQP.Connection.t(), config) :: {:ok, t} | {:error, term}
   def create(connection, config) do
     with :ok <- check_mandatory_params(config, [:role, :exchange, :queue]),
          role when not is_nil(role) <- Keyword.get(config, :role),
@@ -113,21 +116,15 @@ defmodule Lapin.Channel do
                pattern: pattern,
                routing_key: routing_key
            }) do
-      channel
+      {:ok, channel}
     else
       {:error, :missing_params, missing_params} ->
         params = Enum.join(missing_params, ", ")
-
-        error =
-          "Error creating channel from config #{inspect(config)}: missing mandatory params: #{
-            params
-          }"
-
-        Logger.error(error)
-        {:error, error}
+        Logger.error("Error creating channel config #{inspect(config, pretty: true)}: missing params: #{params}")
+        {:error, :missing_params}
 
       {:error, error} ->
-        Logger.error("Error creating channel from config #{config}: #{inspect(error)}")
+        Logger.error("Error creating channel from config #{inspect(config, pretty: true)}: #{inspect(error)}")
         {:error, error}
     end
   end
@@ -135,17 +132,68 @@ defmodule Lapin.Channel do
   @doc """
   Find channel by consumer_tag
   """
-  @spec get([t], consumer_tag) :: t
+  @spec get([t], consumer_tag) :: {:ok, t} | {:error, :channel_not_found}
   def get(channels, consumer_tag) do
-    Enum.find(channels, &channel_matches?(&1, consumer_tag))
+    case Enum.find(channels, &channel_matches?(&1, consumer_tag)) do
+      nil ->
+        {:error, :channel_not_found}
+      channel ->
+        {:ok, channel}
+    end
   end
 
   @doc """
   Find channel by exchange and routing key
   """
-  @spec get([t], exchange, routing_key, role) :: t
+  @spec get([t], exchange, routing_key, role) :: {:ok, t} | {:error, :channel_not_found}
   def get(channels, exchange, routing_key, role) do
-    Enum.find(channels, &channel_matches?(&1, exchange, routing_key, role))
+    case Enum.find(channels, &channel_matches?(&1, exchange, routing_key, role)) do
+      nil ->
+        {:error, :channel_not_found}
+      channel ->
+        {:ok, channel}
+    end
+  end
+
+  @doc """
+  Reject message
+  """
+  @spec reject(t, integer, boolean()) :: :ok | {:error, term}
+  def reject(%{amqp_channel: amqp_channel}, delivery_tag, requeue) do
+    with :ok <- Basic.reject(amqp_channel, delivery_tag, requeue: requeue) do
+      Logger.debug("#{if requeue, do: "Requeued", else: "Rejected"} message #{delivery_tag}")
+    else
+      error ->
+        Logger.error("Error #{if requeue, do: "requeueing", else: "rejecting"} message #{delivery_tag}: #{inspect(error)}")
+        error
+    end
+  end
+
+  @doc """
+  Publish message
+  """
+  @spec publish(t, exchange, routing_key, Message.payload, Keyword.t) :: :ok | {:error, term}
+  def publish(%{amqp_channel: amqp_channel}, exchange, routing_key, payload, options) do
+    Basic.publish(amqp_channel, exchange, routing_key, payload, options)
+  end
+
+  @doc """
+  Wait for publish confirmation
+  """
+  @spec confirm(t) :: boolean()
+  def confirm(%{amqp_channel: amqp_channel}) do
+    case Confirm.wait_for_confirms(amqp_channel) do
+      true -> true
+      _ -> false
+    end
+  end
+
+  @doc """
+  ACK message consumption
+  """
+  @spec ack(t, integer) :: :ok | {:error, term}
+  def ack(%{amqp_channel: amqp_channel}, delivery_tag) do
+    Basic.ack(amqp_channel, delivery_tag)
   end
 
   defp setup(
@@ -155,7 +203,7 @@ defmodule Lapin.Channel do
          consumer_ack <- pattern.consumer_ack(channel),
          :ok <- set_consumer_prefetch(amqp_channel, consumer_prefetch),
          {:ok, consumer_tag} =
-           AMQP.Basic.consume(amqp_channel, queue, nil, no_ack: not consumer_ack),
+           Basic.consume(amqp_channel, queue, nil, no_ack: not consumer_ack),
          channel <- %{channel | consumer_tag: consumer_tag} do
       Logger.debug(fn -> "Consumer '#{consumer_tag}' bound to queue '#{queue}'" end)
       {:ok, channel}
@@ -182,14 +230,14 @@ defmodule Lapin.Channel do
   defp set_consumer_prefetch(_amqp_channel, nil = _consumer_prefetch), do: :ok
 
   defp set_consumer_prefetch(amqp_channel, consumer_prefetch) do
-    AMQP.Basic.qos(amqp_channel, prefetch_count: consumer_prefetch)
+    Basic.qos(amqp_channel, prefetch_count: consumer_prefetch)
   end
 
   defp set_publisher_confirm(_amqp_channel, false = _publisher_confirm), do: :ok
 
   defp set_publisher_confirm(amqp_channel, true = _publisher_confirm) do
-    with :ok <- AMQP.Confirm.select(amqp_channel),
-         :ok <- AMQP.Basic.return(amqp_channel, self()) do
+    with :ok <- Confirm.select(amqp_channel),
+         :ok <- Basic.return(amqp_channel, self()) do
       :ok
     else
       error ->
