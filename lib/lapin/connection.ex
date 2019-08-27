@@ -435,7 +435,7 @@ defmodule Lapin.Connection do
            Keyword.get_and_update(configuration, :virtual_host, fn vhost ->
              {vhost, map_vhost(vhost)}
            end),
-         {_, configuration} =
+         {_, configuration} <-
            Keyword.get_and_update(configuration, :auth_mechanisms, fn
              mechanisms when is_list(mechanisms) ->
                {mechanisms, Enum.map(mechanisms, &map_auth_mechanism(&1))}
