@@ -241,9 +241,6 @@ defmodule Lapin.Connection do
 
       {:error, :channel_not_found} ->
         Logger.warn("Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown channel")
-
-      {:error, error} ->
-        Logger.error("Error canceling consumer_tag '#{consumer_tag}': #{inspect(error)}")
     end
 
     {:stop, :normal, state}
