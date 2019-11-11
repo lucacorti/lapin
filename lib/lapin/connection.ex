@@ -234,10 +234,11 @@ defmodule Lapin.Connection do
         {:basic_cancel, %{consumer_tag: consumer_tag}},
         %{channels: channels, module: module} = state
       ) do
-    with {:ok, channel} <- Channel.get(channels, consumer_tag) do
-      Logger.debug(fn -> "Broker cancelled consumer for #{inspect(channel)}" end)
-      module.handle_cancel(channel)
-    else
+    case Channel.get(channels, consumer_tag) do
+      {:ok, channel} ->
+        Logger.debug(fn -> "Broker cancelled consumer for #{inspect(channel)}" end)
+        module.handle_cancel(channel)
+
       {:error, :channel_not_found} ->
         Logger.warn("Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown channel")
 
@@ -319,9 +320,10 @@ defmodule Lapin.Connection do
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    with {:ok, channel} <- Channel.get(channels, consumer_tag) do
-      spawn(fn -> consume(module, channel, meta, payload) end)
-    else
+    case Channel.get(channels, consumer_tag) do
+      {:ok, channel} ->
+        spawn(fn -> consume(module, channel, meta, payload) end)
+
       {:error, :channel_not_found} ->
         Logger.error("Error processing message #{inspect(message)}, no local channel")
     end
@@ -348,36 +350,43 @@ defmodule Lapin.Connection do
       consume_ack(consumer_ack, channel, delivery_tag)
     else
       {:reject, reason} ->
-        with :ok <- Channel.reject(channel, delivery_tag, false) do
-          Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
-        else
+        case Channel.reject(channel, delivery_tag, false) do
+          :ok ->
+            Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
+            :ok
+
           error ->
             Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
         end
 
       reason ->
-        with :ok <- Channel.reject(channel, delivery_tag, not redelivered) do
-          Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
-        else
+        case Channel.reject(channel, delivery_tag, not redelivered) do
+          :ok ->
+            Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
+            :ok
+
           error ->
             Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
         end
     end
   rescue
     exception ->
-      with :ok <- Channel.reject(channel, delivery_tag, not redelivered) do
-        Logger.error("Rejected message #{delivery_tag}: #{inspect(exception)}")
-      else
+      case Channel.reject(channel, delivery_tag, not redelivered) do
+        :ok ->
+          Logger.error("Rejected message #{delivery_tag}: #{inspect(exception)}")
+          :ok
+
         error ->
           Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
       end
   end
 
   defp consume_ack(true = _consumer_ack, channel, delivery_tag) do
-    with :ok <- Channel.ack(channel, delivery_tag) do
-      Logger.debug("Consumed message #{delivery_tag} successfully, ACK sent")
-      :ok
-    else
+    case Channel.ack(channel, delivery_tag) do
+      :ok ->
+        Logger.debug("Consumed message #{delivery_tag} successfully, ACK sent")
+        :ok
+
       error ->
         Logger.debug("ACK failed for message #{delivery_tag}")
         error
@@ -397,9 +406,10 @@ defmodule Lapin.Connection do
          {:ok, connection} <- AMQP.Connection.open(configuration),
          channels <-
            Enum.reduce_while(channels, [], fn channel, acc ->
-             with {:ok, channel} <- Channel.create(connection, channel) do
-               {:cont, [channel | acc]}
-             else
+             case Channel.create(connection, channel) do
+               {:ok, channel} ->
+                 {:cont, [channel | acc]}
+
                {:error, _error} ->
                  {:cont, acc}
              end

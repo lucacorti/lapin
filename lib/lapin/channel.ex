@@ -171,9 +171,11 @@ defmodule Lapin.Channel do
   """
   @spec reject(t, integer, boolean()) :: :ok | {:error, term}
   def reject(%{amqp_channel: amqp_channel}, delivery_tag, requeue) do
-    with :ok <- Basic.reject(amqp_channel, delivery_tag, requeue: requeue) do
-      Logger.debug("#{if requeue, do: "Requeued", else: "Rejected"} message #{delivery_tag}")
-    else
+    case Basic.reject(amqp_channel, delivery_tag, requeue: requeue) do
+      :ok ->
+        Logger.debug("#{if requeue, do: "Requeued", else: "Rejected"} message #{delivery_tag}")
+        :ok
+
       error ->
         Logger.error(
           "Error #{if requeue, do: "requeueing", else: "rejecting"} message #{delivery_tag}: #{
