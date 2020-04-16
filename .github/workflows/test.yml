@@ -6,10 +6,15 @@ jobs:
     name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
     strategy:
       matrix:
-        otp: [21.3.8.13, 22.2.6]
+        otp: [21, 22]
         elixir: [1.9.4, 1.10.1]
     steps:
       - uses: actions/checkout@v2
+      - uses: getong/rabbitmq-action@v1.2
+        with:
+          rabbitmq version: 'latest'
+          host port: 5672
+          rabbitmq vhost: '/'
       - uses: actions/setup-elixir@v1
         with:
           otp-version: ${{matrix.otp}}
