@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         otp: [21, 22]
-        elixir: [1.9, 1.10]
+        elixir: ['1.9', '1.10']
     steps:
       - uses: actions/checkout@v2
       - uses: getong/rabbitmq-action@v1.2
