@@ -26,13 +26,13 @@ jobs:
           cache-name: mix
         with:
           path: ~/.mix
-          key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
+          key: cache-${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
       - uses: actions/cache@v1
         env:
           cache-name: build
         with:
           path: _build
-          key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
+          key: cache-${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
       - run: mix deps.get
       - run: mix credo --strict --all
       - run: mix dialyzer
