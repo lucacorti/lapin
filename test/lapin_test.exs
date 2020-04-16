@@ -25,6 +25,8 @@ defmodule LapinTest do
       message: "",
       producer: [
         module: LapinTest.HelloWorld,
+        username: "test",
+        password: "test",
         channels: [
           [
             role: :producer,
@@ -35,6 +37,8 @@ defmodule LapinTest do
       ],
       consumer: [
         module: LapinTest.HelloWorld,
+        username: "test",
+        password: "test",
         channels: [
           [
             role: :consumer,
@@ -45,6 +49,8 @@ defmodule LapinTest do
       ],
       passive: [
         module: LapinTest.HelloWorld,
+        username: "test",
+        password: "test",
         channels: [
           [
             role: :passive,
@@ -60,7 +66,10 @@ defmodule LapinTest do
       ],
       bad_host: [
         module: LapinTest.HelloWorld,
-        uri: "amqp://thisisnotthedefault:nopass@nohosthere:9999",
+        host: "nohosthere",
+        port: 9999,
+        username: "thisisnotthedefault",
+        password: "nopass",
         channels: [
           [
             role: :producer,
