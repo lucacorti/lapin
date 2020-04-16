@@ -7,13 +7,15 @@ jobs:
     strategy:
       matrix:
         otp: [21, 22]
-        elixir: [1.9.4, 1.10.1]
+        elixir: [1.9, 1.10]
     steps:
       - uses: actions/checkout@v2
       - uses: getong/rabbitmq-action@v1.2
         with:
           rabbitmq version: 'latest'
           host port: 5672
+          rabbitmq user: 'test'
+          rabbitmq password: 'test'
           rabbitmq vhost: '/'
       - uses: actions/setup-elixir@v1
         with:
@@ -25,16 +27,12 @@ jobs:
         with:
           path: ~/.mix
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
-          restore-keys: |
-             ${{ runner.os }}-${{ env.cache-name }}-
       - uses: actions/cache@v1
         env:
           cache-name: build
         with:
           path: _build
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
-          restore-keys: |
-             ${{ runner.os }}-${{ env.cache-name }}-
       - run: mix deps.get
       - run: mix credo --strict --all
       - run: mix dialyzer
