@@ -17,8 +17,8 @@ defmodule Lapin.Queue do
             binds: [],
             options: []
 
-  @spec new(Keyword.t()) :: %__MODULE__{}
-  def new(attrs), do: struct(%__MODULE__{}, attrs)
+  @spec new(String.t(), Keyword.t()) :: %__MODULE__{}
+  def new(name, attrs), do: struct(%__MODULE__{name: name}, attrs)
 
   @spec declare(t(), Channel.t()) :: :ok | {:error, term}
   def declare(%{name: name, options: options}, channel) do
@@ -34,8 +34,8 @@ defmodule Lapin.Queue do
   end
 
   def bind(%{name: name, binds: binds}, channel) do
-    Enum.reduce_while(binds, :ok, fn {exchange, options}, acc ->
-      case Queue.bind(channel, name, Atom.to_string(exchange), options) do
+    Enum.reduce_while(binds, :ok, fn {exchange, arguments}, acc ->
+      case Queue.bind(channel, name, Atom.to_string(exchange), arguments) do
         :ok ->
           {:cont, acc}
 

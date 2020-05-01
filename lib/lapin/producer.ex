@@ -46,11 +46,8 @@ defmodule Lapin.Producer do
       @behaviour Producer
 
       def confirm(%Producer{config: config}), do: Keyword.get(config, :confirm, false)
-
-      def exchange(%Producer{config: config}), do: Keyword.get(config, :exchange)
-
+      def exchange(%Producer{config: config}), do: Keyword.fetch!(config, :exchange)
       def mandatory(%Producer{config: config}), do: Keyword.get(config, :mandatory, false)
-
       def persistent(%Producer{config: config}), do: Keyword.get(config, :persistent, false)
 
       defoverridable Producer
@@ -63,11 +60,11 @@ defmodule Lapin.Producer do
   The following keys are supported:
     - pattern: producer pattern (module using the `Lapin.Producer` behaviour)
 
-  If using the `Lapin.Pattern.Config` default implementation, the following keys are also supported:
-    - exchange: declare an exchange with the broker (`Exchange.t`)
-    - confirm: expect RabbitMQ publish confirms (boolean), *default: false*
-    - mandatory: messages published as mandatory by default (boolean), *deafault: false*
-    - persistent: messages published as persistent by default (boolean), *deafault: false*
+  If using the `Lapin.Producer.Config` default implementation, the following keys are also supported:
+    - exchange: exchange used for publish (`String.t`, *required*)
+    - confirm: expect RabbitMQ publish confirms (`boolean()`, *default: false*)
+    - mandatory: messages published as mandatory by default (`boolean()`, *default: false*)
+    - persistent: messages published as persistent by default (`boolean()`, *default: false*)
   """
   @type config :: Keyword.t()
 

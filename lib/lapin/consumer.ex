@@ -22,7 +22,17 @@ defmodule Lapin.Consumer do
   @typedoc "Consumer Tag"
   @type consumer_tag :: String.t()
 
-  @typedoc "Consumer configuration"
+  @typedoc """
+  Consumer configuration
+
+  The following keys are supported:
+    - pattern: producer pattern (module using the `Lapin.Producer` behaviour)
+
+  If using the `Lapin.Consumer.Config` default implementation, the following keys are also supported:
+    - queue: queue to consume from, (`String.t()`, *required*)
+    - ack: producer ack (`boolean()`, default: false*
+    - prefetch_count: consumer prefetch count (`integer()`, *default: 1*)
+  """
   @type config :: Keyword.t()
 
   @typedoc "Consumer Prefetch"
@@ -39,7 +49,7 @@ defmodule Lapin.Consumer do
   @callback prefetch_count(consumer :: t()) :: prefetch_count()
 
   @doc """
-  Declare queue
+  Queue to consume from
   """
   @callback queue(consumer :: t()) :: Queue.t()
 
@@ -50,10 +60,8 @@ defmodule Lapin.Consumer do
       @behaviour Consumer
 
       def ack(%Consumer{config: config}), do: Keyword.get(config, :ack, false)
-
-      def prefetch_count(%Consumer{config: config}), do: Keyword.get(config, :prefetch_count)
-
-      def queue(%Consumer{config: config}), do: Keyword.get(config, :queue)
+      def prefetch_count(%Consumer{config: config}), do: Keyword.get(config, :prefetch_count, 1)
+      def queue(%Consumer{config: config}), do: Keyword.fetch!(config, :queue)
 
       defoverridable Consumer
     end
@@ -78,7 +86,7 @@ defmodule Lapin.Consumer do
   """
   @spec create(Connection.t(), config) :: t
   def create(connection, config) do
-    pattern = Keyword.get(config, :pattern, Lapin.Pattern.Config)
+    pattern = Keyword.get(config, :pattern, Lapin.Consumer.Config)
     consumer = %__MODULE__{config: config, pattern: pattern}
 
     with {:ok, channel} <- Channel.open(connection),

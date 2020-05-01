@@ -24,8 +24,8 @@ defmodule Lapin.Exchange do
             type: :direct,
             options: []
 
-  @spec new(Keyword.t()) :: %__MODULE__{}
-  def new(attrs), do: struct(%__MODULE__{}, attrs)
+  @spec new(String.t(), Keyword.t()) :: %__MODULE__{}
+  def new(name, attrs), do: struct(%__MODULE__{name: name}, attrs)
 
   @spec declare(t(), Channel.t()) :: :ok | {:error, term}
   def declare(%{name: name, type: type, options: options}, channel) do

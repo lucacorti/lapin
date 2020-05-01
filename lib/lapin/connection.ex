@@ -413,7 +413,11 @@ defmodule Lapin.Connection do
     exchanges =
       configuration
       |> Keyword.get(:exchanges, [])
-      |> Enum.map(&Exchange.new/1)
+      |> Enum.map(fn {name, options} ->
+        name
+        |> Atom.to_string()
+        |> Exchange.new(options)
+      end)
 
     {Enum.each(exchanges, &Exchange.declare(&1, channel)), exchanges}
   end
@@ -424,7 +428,11 @@ defmodule Lapin.Connection do
     queues =
       configuration
       |> Keyword.get(:queues, [])
-      |> Enum.map(&Queue.new/1)
+      |> Enum.map(fn {name, options} ->
+        name
+        |> Atom.to_string()
+        |> Queue.new(options)
+      end)
 
     {Enum.each(queues, &Queue.declare(&1, channel)), queues}
   end
