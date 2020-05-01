@@ -1,6 +1,6 @@
 # Lapin, a RabbitMQ client for Elixir
 
-## Description ###
+## Description
 
 **Lapin** is a *RabbitMQ* client for *Elixir* which abstracts away a lot of the
 complexities of interacting with an *AMQP* broker.
@@ -9,7 +9,7 @@ While some advanced features, like [publisher confirms](http://www.rabbitmq.com/
 are tied to *RabbitMQ* implementation specific extensions, **Lapin** should play
 well with other broker implementations conforming to the AMQP 0.9.1 specification.
 
-## Installation ##
+## Installation
 
 Just add **Lapin** as a dependency to your `mix.exs`:
 
@@ -28,7 +28,7 @@ children = [
 ]
 ```
 
-## Quick Start ##
+## Quick Start
 
 If you are impatient to try **Lapin** out, just tweak this basic configuration
 example:
@@ -74,8 +74,7 @@ iex(1)> ExampleApp.Worker.publish("some_exchange", "routing_key", "payload")
 
 Read on to learn how easy it is to tweak this basic configuration.
 
-
-## Configuration ##
+## Configuration
 
 You can configure multiple connections. Each connection is backed by a worker
 which can implement a few callbacks to publish/consume messages and handle other
@@ -98,7 +97,7 @@ specification.
 
 Advanced channel behaviour can be configured in two ways.
 
-### One-shot, static channel configuration ###
+### One-shot, static channel configuration
 
 If you are fine with a one shot configuration of your channels, you can specify
 any settings from the `Lapin.Channel` *config* type specification
@@ -138,7 +137,7 @@ config :lapin, :connections, [
 ]
 ```
 
-### Reusable, static or dynamic channel configuration ###
+### Reusable, static or dynamic channel configuration
 
 If you need to configure a lot of channels in the same way, you can use a
 `Lapin.Pattern` to define channel settings. A pattern is simply a collection of
@@ -192,9 +191,9 @@ Actually, the one-shot static configuration explained earlier is implemented by
 the default `Lapin.Pattern.Config` module implementation which tries to read
 settings from the configuration file and provides sensible defaults if needed.
 
-## Usage ##
+## Usage
 
-### Consuming messages ###
+### Consuming messages
 
 Once you have completed your configuration, connections will be automatically
 established and channels will start receiving messages published on the queues
@@ -239,7 +238,7 @@ Messages are considered to be successfully consumed if the
 documentation for a complete list of possible values you can return to signal
 message acknowledgement and rejection to the broker.
 
-### Publishing messages ###
+### Publishing messages
 
 To publish messages on channels you can use the `publish` function injected
 in your worker module by `use Lapin.Connection`, or directly call
@@ -290,7 +289,7 @@ If you are starting a `Lapin.Connection` manually, you can also pass the connect
 :ok = Lapin.Connection.publish(pid, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```
 
-### Declaring broker configuration ###
+### Declaring broker configuration
 
 If you want to declare exchanges and queues without producing nor consuming
 messages, you can. *Lapin* will just create a channel and declare exchanges,
@@ -311,7 +310,7 @@ and the broker state if there are any.
 {:error, message} = Lapin.Connection.publish(pid, "some_exchange", "routing_key", %Lapin.Message{}, [])
 ```
 
-### Message payload encoding ###
+### Message payload encoding
 
 Message payload is assumed to be `binary` by default, and is sent and received
 unaltered by your code. However, Lapin can handle message encoding and decoding

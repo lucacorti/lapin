@@ -22,24 +22,20 @@ defmodule Lapin.Queue do
 
   @spec declare(t(), Channel.t()) :: :ok | {:error, term}
   def declare(%{name: name, options: options}, channel) do
-    with {:ok, info} <-
-           Queue.declare(
-             channel,
-             name,
-             options
-           ) do
-      Logger.debug(fn -> "Declared queue #{name}: #{inspect(info)}" end)
-      :ok
-    else
+    case Queue.declare(channel, name, options) do
+      {:ok, info} ->
+        Logger.debug(fn -> "Declared queue #{name}: #{inspect(info)}" end)
+        :ok
+
       error ->
+        Logger.debug(fn -> "Error declaring queue #{name}: #{inspect(error)}" end)
         error
     end
   end
 
   def bind(%{name: name, binds: binds}, channel) do
-    binds
-    |> Enum.reduce_while(:ok, fn {exchange, options}, acc ->
-      case Queue.bind(channel, name, exchange, options) do
+    Enum.reduce_while(binds, :ok, fn {exchange, options}, acc ->
+      case Queue.bind(channel, name, Atom.to_string(exchange), options) do
         :ok ->
           {:cont, acc}
 

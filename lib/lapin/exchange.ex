@@ -5,6 +5,8 @@ defmodule Lapin.Exchange do
 
   alias AMQP.{Channel, Exchange, Queue}
 
+  require Logger
+
   @type name :: String.t()
   @type routing_key :: String.t()
   @type type :: :direct | :fanout | :topic
@@ -27,18 +29,20 @@ defmodule Lapin.Exchange do
 
   @spec declare(t(), Channel.t()) :: :ok | {:error, term}
   def declare(%{name: name, type: type, options: options}, channel) do
-    Exchange.declare(
-      channel,
-      name,
-      type,
-      options
-    )
+    case Exchange.declare(channel, name, type, options) do
+      :ok ->
+        Logger.debug(fn -> "Declared exchange #{name}: #{inspect([type, options])}" end)
+        :ok
+
+      error ->
+        Logger.debug(fn -> "Error declaring exchange #{name}: #{inspect(error)}" end)
+        error
+    end
   end
 
   def bind(%{name: name, binds: binds}, channel) do
-    binds
-    |> Enum.reduce_while(:ok, fn {queue, options}, acc ->
-      case Queue.bind(channel, queue, name, options) do
+    Enum.reduce_while(binds, :ok, fn {queue, options}, acc ->
+      case Queue.bind(channel, Atom.to_string(queue), name, options) do
         :ok ->
           {:cont, acc}
 

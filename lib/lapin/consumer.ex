@@ -47,27 +47,25 @@ defmodule Lapin.Consumer do
     quote do
       alias Lapin.Consumer
 
-      @behaviour Lapin.Consumer
+      @behaviour Consumer
 
-      @ack false
-
-      def ack(%Consumer{config: config}), do: Keyword.get(config, :ack, @ack)
+      def ack(%Consumer{config: config}), do: Keyword.get(config, :ack, false)
 
       def prefetch_count(%Consumer{config: config}), do: Keyword.get(config, :prefetch_count)
 
       def queue(%Consumer{config: config}), do: Keyword.get(config, :queue)
 
-      defoverridable Lapin.Consumer
+      defoverridable Consumer
     end
   end
 
   @typedoc "Lapin Consumer Behaviour"
   @type t :: %__MODULE__{
-          channel: Channel.t,
+          channel: Channel.t(),
           consumer_tag: consumer_tag(),
           pattern: atom,
           config: config(),
-          queue: String.t
+          queue: String.t()
         }
   defstruct channel: nil,
             consumer_tag: nil,
@@ -112,9 +110,10 @@ defmodule Lapin.Consumer do
   """
   @spec reject_message(t, integer, boolean()) :: :ok | {:error, term}
   def reject_message(%{channel: channel}, delivery_tag, requeue) do
-    with :ok <- Basic.reject(channel, delivery_tag, requeue: requeue) do
-      Logger.debug("#{if requeue, do: "Requeued", else: "Rejected"} message #{delivery_tag}")
-    else
+    case Basic.reject(channel, delivery_tag, requeue: requeue) do
+      :ok ->
+        Logger.debug("#{if requeue, do: "Requeued", else: "Rejected"} message #{delivery_tag}")
+
       error ->
         Logger.error(
           "Error #{if requeue, do: "requeueing", else: "rejecting"} message #{delivery_tag}: #{

@@ -144,6 +144,7 @@ defmodule Lapin.Connection do
 
   def init(configuration) do
     Process.flag(:trap_exit, true)
+
     {:connect, :init,
      %{configuration: configuration, consumers: [], producers: [], connection: nil, module: nil}}
   end
@@ -215,17 +216,15 @@ defmodule Lapin.Connection do
         {:basic_cancel, %{consumer_tag: consumer_tag}},
         %{consumers: consumers, module: module} = state
       ) do
-    with {:ok, consumer} <- Consumer.get(consumers, consumer_tag) do
-      Logger.debug(fn -> "Broker cancelled consumer for #{inspect(consumer)}" end)
-      module.handle_cancel(consumer)
-    else
-      nil ->
+    case Consumer.get(consumers, consumer_tag) do
+      {:ok, consumer} ->
+        Logger.debug(fn -> "Broker cancelled consumer for #{inspect(consumer)}" end)
+        module.handle_cancel(consumer)
+
+      {:error, :not_found} ->
         Logger.warn(
           "Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown consumer"
         )
-
-      {:error, error} ->
-        Logger.error("Error canceling consumer_tag '#{consumer_tag}': #{inspect(error)}")
     end
 
     {:stop, :normal, state}
@@ -302,9 +301,10 @@ defmodule Lapin.Connection do
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    with {:ok, consumer} <- Consumer.get(consumers, consumer_tag) do
-      spawn(fn -> consume(module, consumer, message) end)
-    else
+    case Consumer.get(consumers, consumer_tag) do
+      {:ok, consumer} ->
+        spawn(fn -> consume(module, consumer, message) end)
+
       {:error, :not_found} ->
         Logger.error("Error processing message #{inspect(message)}, no local consumer")
     end
@@ -331,36 +331,40 @@ defmodule Lapin.Connection do
       consume_ack(ack, consumer, delivery_tag)
     else
       {:reject, reason} ->
-        with :ok <- Consumer.reject_message(consumer, delivery_tag, false) do
-          Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
-        else
+        case Consumer.reject_message(consumer, delivery_tag, false) do
+          :ok ->
+            Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
+
           {:error, reason} ->
             Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(reason)}")
         end
 
       reason ->
-        with :ok <- Consumer.reject_message(consumer, delivery_tag, not redelivered) do
-          Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
-        else
+        case Consumer.reject_message(consumer, delivery_tag, not redelivered) do
+          :ok ->
+            Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
+
           {:error, reason} ->
             Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(reason)}")
         end
     end
   rescue
     exception ->
-      with :ok <- Consumer.reject_message(consumer, delivery_tag, not redelivered) do
-        Logger.error("Rejected message #{delivery_tag}: #{inspect(exception)}")
-      else
+      case Consumer.reject_message(consumer, delivery_tag, not redelivered) do
+        :ok ->
+          Logger.error("Rejected message #{delivery_tag}: #{inspect(exception)}")
+
         error ->
           Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
       end
   end
 
   defp consume_ack(true = _ack, consumer, delivery_tag) do
-    with :ok <- Consumer.ack_message(consumer, delivery_tag) do
-      Logger.debug("Consumed message #{delivery_tag} successfully, ACK sent")
-      :ok
-    else
+    case Consumer.ack_message(consumer, delivery_tag) do
+      :ok ->
+        Logger.debug("Consumed message #{delivery_tag} successfully, ACK sent")
+        :ok
+
       error ->
         Logger.debug("ACK failed for message #{delivery_tag}")
         error
@@ -406,9 +410,10 @@ defmodule Lapin.Connection do
   end
 
   defp declare_exchanges(configuration, channel) do
-    exchanges = configuration
-    |> Keyword.get(:exchanges, [])
-    |> Enum.map(&Exchange.new/1)
+    exchanges =
+      configuration
+      |> Keyword.get(:exchanges, [])
+      |> Enum.map(&Exchange.new/1)
 
     {Enum.each(exchanges, &Exchange.declare(&1, channel)), exchanges}
   end
@@ -416,9 +421,10 @@ defmodule Lapin.Connection do
   defp bind_exchanges(exchanges, channel), do: Enum.each(exchanges, &Exchange.bind(&1, channel))
 
   defp declare_queues(configuration, channel) do
-    queues = configuration
-    |> Keyword.get(:queues, [])
-    |> Enum.map(&Queue.new/1)
+    queues =
+      configuration
+      |> Keyword.get(:queues, [])
+      |> Enum.map(&Queue.new/1)
 
     {Enum.each(queues, &Queue.declare(&1, channel)), queues}
   end
@@ -426,17 +432,19 @@ defmodule Lapin.Connection do
   defp bind_queues(queues, channel), do: Enum.each(queues, &Queue.bind(&1, channel))
 
   defp create_producers(configuration, connection) do
-    producers = configuration
-    |> Keyword.get(:producers, [])
-    |> Enum.map(&Producer.create(connection, &1))
+    producers =
+      configuration
+      |> Keyword.get(:producers, [])
+      |> Enum.map(&Producer.create(connection, &1))
 
     {:ok, producers}
   end
 
   defp create_consumers(configuration, connection) do
-    consumers = configuration
-    |> Keyword.get(:consumers, [])
-    |> Enum.map(&Consumer.create(connection, &1))
+    consumers =
+      configuration
+      |> Keyword.get(:consumers, [])
+      |> Enum.map(&Consumer.create(connection, &1))
 
     {:ok, consumers}
   end
@@ -460,7 +468,7 @@ defmodule Lapin.Connection do
            Keyword.get_and_update(configuration, :virtual_host, fn vhost ->
              {vhost, map_vhost(vhost)}
            end),
-         {_, configuration} =
+         {_, configuration} <-
            Keyword.get_and_update(configuration, :auth_mechanisms, fn
              mechanisms when is_list(mechanisms) ->
                {mechanisms, Enum.map(mechanisms, &map_auth_mechanism(&1))}

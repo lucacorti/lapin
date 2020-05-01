@@ -13,7 +13,6 @@ defmodule Lapin.Mixfile do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       dialyzer: [
-        plt_add_deps: :project,
         ignore_warnings: ".dialyzer.ignore-warnings"
       ]
     ]
@@ -29,12 +28,12 @@ defmodule Lapin.Mixfile do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:amqp, "~> 1.4"},
+      {:connection, "~> 1.0.0"},
       {:ex_doc, ">= 0.0.0", only: [:dev]},
       {:earmark, ">= 0.0.0", only: [:dev]},
       {:credo, ">= 0.0.0", only: [:dev]},
-      {:dialyxir, ">= 0.0.0", only: [:dev]},
-      {:amqp, "~> 1.2"},
-      {:connection, "~> 1.0.0"}
+      {:dialyxir, ">= 0.0.0", only: [:dev]}
     ]
   end
 

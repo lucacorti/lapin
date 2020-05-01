@@ -45,18 +45,13 @@ defmodule Lapin.Producer do
 
       @behaviour Producer
 
-      @exchange nil
-      @confirm false
-      @mandatory false
-      @persistent false
+      def confirm(%Producer{config: config}), do: Keyword.get(config, :confirm, false)
 
-      def confirm(%Producer{config: config}), do: Keyword.get(config, :confirm, @confirm)
+      def exchange(%Producer{config: config}), do: Keyword.get(config, :exchange)
 
-      def exchange(%Producer{config: config}), do: Keyword.get(config, :exchange, @exchange)
+      def mandatory(%Producer{config: config}), do: Keyword.get(config, :mandatory, false)
 
-      def mandatory(%Producer{config: config}), do: Keyword.get(config, :mandatory, @mandatory)
-
-      def persistent(%Producer{config: config}), do: Keyword.get(config, :persistent, @persistent)
+      def persistent(%Producer{config: config}), do: Keyword.get(config, :persistent, false)
 
       defoverridable Producer
     end
@@ -78,10 +73,10 @@ defmodule Lapin.Producer do
 
   @typedoc "Lapin Producer"
   @type t :: %__MODULE__{
-          channel: Channel.t,
+          channel: Channel.t(),
           pattern: atom,
           config: config,
-          exchange: String.t
+          exchange: String.t()
         }
   defstruct channel: nil,
             pattern: nil,
@@ -122,7 +117,8 @@ defmodule Lapin.Producer do
   @doc """
   Publish message
   """
-  @spec publish(t, Exchange.name, Exchange.routing_key, Message.payload(), Keyword.t()) :: :ok | {:error, term}
+  @spec publish(t, Exchange.name(), Exchange.routing_key(), Message.payload(), Keyword.t()) ::
+          :ok | {:error, term}
   def publish(%{channel: channel}, exchange, routing_key, payload, options) do
     Basic.publish(channel, exchange, routing_key, payload, options)
   end

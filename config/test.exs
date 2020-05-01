@@ -6,17 +6,17 @@ config :lapin, :connections, [
     exchanges: [
       [
         name: "test_exchange",
-        binds: %{
-          "test_queue" => [routing_key: "test_routing_key"]
-        }
+        binds: [
+          test_queue: [routing_key: "test_routing_key"]
+        ]
       ]
     ],
     queues: [
       [
         name: "test_queue",
-        binds: %{
-          "test_exchange" => [routing_key: "test_routing_key"]
-        }
+        binds: [
+          test_exchange: [routing_key: "test_routing_key"]
+        ]
       ]
     ],
     consumers: [
@@ -34,6 +34,6 @@ config :lapin, :connections, [
   ],
   [
     module: LapinTest.BadHostWorker,
-    uri: "amqp://thisisnotthedefault:nopass@nohosthere:9999",
+    uri: "amqp://thisisnotthedefault:nopass@nohosthere:9999"
   ]
 ]

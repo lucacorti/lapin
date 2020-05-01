@@ -25,31 +25,18 @@ defmodule LapinTest do
   end
 
   test "Supervisor starts correctly", %{supervisor: supervisor} do
-    assert supervisor
-           |> Process.alive?()
+    assert Process.alive?(supervisor)
   end
 
   test "Publish message via connection" do
-    :ok =
-      Lapin.Connection.publish(
-        LapinTest.Worker,
-        "test_exchange",
-        "test_routing_key",
-        "msg"
-      )
+    :ok = LapinTest.Worker.publish("test_exchange", "test_routing_key", "msg")
   end
 
   test "Publish message via worker" do
-    :ok =
-      LapinTest.Worker.publish(
-        "test_exchange",
-        "test_routing_key",
-        "msg"
-      )
+    :ok = LapinTest.Worker.publish("test_exchange", "test_routing_key", "msg")
   end
 
   test "Bad host gets error on publish" do
-    {:error, :not_connected} =
-      Lapin.Connection.publish(LapinTest.BadHostWorker, "test_badhost", "", "msg")
+    {:error, :not_connected} = LapinTest.BadHostWorker.publish("test_badhost", "", "msg")
   end
 end
