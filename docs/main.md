@@ -23,7 +23,7 @@ And add the `Lapin.Supervisor` under your application supervision tree:
 
 ```elixir
 children = [
-  supervisor(Lapin.Supervisor, [[], [name: Lapin.Supervisor]])
+  Lapin.Supervisor
   ...
 ]
 ```
@@ -147,7 +147,7 @@ end
 defmodule ExampleApp.Producer do
   use Lapin.Pattern
 
-  def confirm(_channel), do: false  
+  def confirm(_channel), do: false
   def mandatory(_channel), do: true
   def persistent(_channel), do: true
 end
@@ -236,7 +236,7 @@ defmodule ExampleApp.Worker do
 end
 ```
 
-Since messages for all producers on the same connection are received by the same
+Since messages for all consumers on the same connection are received by the same
 worker module, to dispatch messages to different handling logic you can pattern
 match on the `Channel.config` map which contains message routing information.
 
@@ -283,7 +283,7 @@ config :lapin, :connections, [
 Using the worker module implementation:
 
 ```elixir
-:ok = ExampleApp.Worker.publish("some_exchange", "routing_key", "payload", [])  
+:ok = ExampleApp.Worker.publish("some_exchange", "routing_key", "payload", [])
 ```
 
 Via `Lapin.Connection` by passing the worker module as the connection:
