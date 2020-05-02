@@ -1,0 +1,39 @@
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    strategy:
+      matrix:
+        otp: [21, 22]
+        elixir: ['1.9', '1.10']
+    steps:
+      - uses: actions/checkout@v2
+      - uses: getong/rabbitmq-action@v1.2
+        with:
+          rabbitmq version: 'latest'
+          host port: 5672
+          rabbitmq user: 'test'
+          rabbitmq password: 'test'
+          rabbitmq vhost: '/'
+      - uses: actions/setup-elixir@v1
+        with:
+          otp-version: ${{matrix.otp}}
+          elixir-version: ${{matrix.elixir}}
+      - uses: actions/cache@v1
+        env:
+          cache-name: mix
+        with:
+          path: ~/.mix
+          key: cache-${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
+      - uses: actions/cache@v1
+        env:
+          cache-name: build
+        with:
+          path: _build
+          key: cache-${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
+      - run: mix deps.get
+      - run: mix credo --strict --all
+      - run: mix dialyzer
+      - run: mix test
