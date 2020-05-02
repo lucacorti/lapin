@@ -334,6 +334,7 @@ defmodule Lapin.Connection do
         case Consumer.reject_message(consumer, delivery_tag, false) do
           :ok ->
             Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
+            :ok
 
           {:error, reason} ->
             Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(reason)}")
@@ -343,6 +344,7 @@ defmodule Lapin.Connection do
         case Consumer.reject_message(consumer, delivery_tag, not redelivered) do
           :ok ->
             Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
+            :ok
 
           {:error, reason} ->
             Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(reason)}")
@@ -353,16 +355,17 @@ defmodule Lapin.Connection do
       case Consumer.reject_message(consumer, delivery_tag, not redelivered) do
         :ok ->
           Logger.error("Rejected message #{delivery_tag}: #{inspect(exception)}")
+          :ok
 
-        error ->
-          Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
+        {:error, reason} ->
+          Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(reason)}")
       end
   end
 
-  defp consume_ack(true = _ack, consumer, delivery_tag) do
+  defp consume_ack(true = _consumer_ack, consumer, delivery_tag) do
     case Consumer.ack_message(consumer, delivery_tag) do
       :ok ->
-        Logger.debug("Consumed message #{delivery_tag} successfully, ACK sent")
+        Logger.debug("Consumed message #{delivery_tag}, ACK sent")
         :ok
 
       error ->
