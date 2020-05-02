@@ -95,7 +95,7 @@ Advanced consumer/producer behaviour can be configured in two ways.
 
 If you are fine with one shot configuration of your comsumers/producers, you can specify
 any settings from the `Lapin.Consumer`/`Lapin.Producer` `config` type specification
-directly in your channel configurations.
+directly in your the corresponding configuration keyword list.
 
 This is quick and easy way to start.
 
@@ -126,14 +126,14 @@ config :lapin, :connections, [
 ### Reusable, static or dynamic consumer/producer configuration
 
 If you need to configure a lot of consumers/producers in the same way, you can use a
-`Lapin.Consumer`/`Lapin.Producer` to define channel settings. A pattern is simply a collection of
-behaviour callbacks bundled in a module, which you can then reuse in any channel
-configuration when you need the same kind of interaction pattern.
+`Lapin.Consumer`/`Lapin.Producer` to define reusable configurations. A pattern is simply
+a collection of behaviour callbacks bundled in a module, which you can then reuse in any
+consumer/producer configuration when you need the same kind of interaction pattern.
 
-To do this, you need to define your pattern module by `use Lapin.Pattern`
-and specifying it in your in your channel configuration under the *pattern* key.
+To do this, you need to define your producer/consumer module by `use Lapin.Consumer`
+or `use Lapin.Producer` and specify it in your configuration under the *pattern* key.
 
-In fact `Lapin` bundles a few `Lapin.Pattern` implementations for the
+In fact `Lapin` bundles a few consumer/producer implementations for the
 *RabbitMQ* [tutorials patterns](https://www.rabbitmq.org/getstarted.html).
 
 `lib/example_app/some_pattern.ex`:
@@ -169,18 +169,17 @@ config :lapin, :connections, [
 ]
 ```
 
-Since `Lapin.Consumer`/`Lapin.Producer` are just behaviours of overridable callback
+Since `Lapin.Consumer` and `Lapin.Producer` are just behaviours of overridable callback
 functions, they also allow you to implement any kind of dynamic runtime configuration.
 
-Actually, the one-shot static configuration explained earlier is implemented by
-the default `Lapin.Consumer`/`Lapin.Producer` implementations which read settings
-from the configuration and try to provide sensible defaults if needed.
+Actually, the one-shot static configuration explained earlier is provided by the default
+implementations, which read settings from the configuration and tries to provide sensible defaults.
 
 ### Declaring broker configuration
 
 If you want to declare exchanges and queues with the broker you can do so in the configuration.
-*Lapin* will just create a channel and declare exchanges, queues and bindings, reporting any
-discrepancies between the configuration and the broker state if there are any.
+*Lapin* will just declare the specied exchanges, queues and bindings and report any discrepancies
+between the configuration and the broker state if there are any.
 
 ```elixir
 config :lapin, :connections, [
@@ -207,23 +206,22 @@ config :lapin, :connections, [
 ```
 
 Exchange declarations support `type` (*default: :direct*), `options` (see `AMQP.Exchange.declare/4`
-for allowed types/options) and binds, which is a `keyword()` of queue names and declare arguments
-(see `AMQP.Queue.bind/4` for allowed arguments).
+for allowed exchange types and options) and `binds`, which is a keyword list of queue names and
+declare arguments (see `AMQP.Queue.bind/4` for allowed arguments).
 
-Queue declarations support `options` (see `AMQP.Queue.declare/3` for allowed options) and binds,
-which is a `keyword()` of exchange names and declare arguments (see `AMQP.Exchange.bind/4` for
+Queue declarations support `options` (see `AMQP.Queue.declare/3` for allowed options) and `binds`,
+which is a keyword list of exchange names and declare arguments (see `AMQP.Exchange.bind/4` for
 allowed arguments).
 
 ## Usage
 
 ### Consuming messages
 
-Once you have completed your configuration, connections will be automatically
-established and channels will start receiving messages published on the queues
-they are consuming.
+Once you have completed your configuration, connections will be automatically established and channels
+will start receiving messages published on the queues they are consuming.
 
-You can handle received messages by overriding the `Lapin.Connection` `handle_deliver/2`
-callback. The default implementation simply logs messages and returns `:ok`.
+You can handle received messages by overriding the `Lapin.Connection` `handle_deliver/2` callback.
+The default implementation simply logs messages and returns `:ok`.
 
 ```elixir
 defmodule ExampleApp.Worker do
@@ -236,9 +234,9 @@ defmodule ExampleApp.Worker do
 end
 ```
 
-Since messages for all consumers on the same connection are received by the same
-worker module, to dispatch messages to different handling logic you can pattern
-match on the `Channel.config` map which contains message routing information.
+Since messages for all consumers on the same connection are received by the same worker module,
+to dispatch messages to different handling logic you can pattern match on the `Channel.config` map,
+which contains message routing information.
 
 ```elixir
 defmodule ExampleApp.Worker do
@@ -256,16 +254,15 @@ defmodule ExampleApp.Worker do
 end
 ```
 
-Messages are considered to be successfully consumed if the `Lapin.Connection`
-`handle_deliver/2` callback returns `:ok`. See the callback documentation for
-a complete list of possible values you can return to signal message acknowledgement
-and rejection to the broker.
+Messages are considered to be successfully consumed if the `Lapin.Connection` `handle_deliver/2`
+callback returns `:ok`. See the callback documentation for a complete list of possible values you
+can return to signal message acknowledgement and rejection to the broker.
 
 ### Publishing messages
 
-To publish messages on channels you can use the `publish` function injected
-in your worker module by `use Lapin.Connection`, or directly call
-`Lapin.Connection.publish/5` by passing your worker module as a connection.
+To publish messages you can use the `publish` function injected in your worker module by
+`use Lapin.Connection`, or directly call `Lapin.Connection.publish/5` by passing your worker module
+as the connection argument.
 
 `config/config.exs`:
 
@@ -297,12 +294,8 @@ If you are starting a `Lapin.Connection` manually, you can also pass the connect
 ```elixir
 {:ok, pid} = Lapin.Connection.start_link([
   module: ExampleApp.Worker,
-  channels: [
-    [
-      pattern: ExampleApp.Pattern,
-      exchange: "some_exchange",
-      queue: "some_queue"
-    ]
+  producers: [
+    [exchange: "some_exchange"]
   ]
 ])
 
@@ -319,10 +312,10 @@ Automatic encoding of the message payload is done by passing a data type other
 than binary as the `payload` argument to the publish methods. And by providing
 an implementation of the `Lapin.Message.Payload` protocol for your data type.
 
-When consuming, the `Lapin.Connection` `payload_for/2` callback of the worker module
-allows you to return an instance of the data type you want to perform message
-decoding into. Again, an implementation of the `Lapin.Message.Payload` protocol
-is required for your custom `payload` data type (e.g. a struct).
+When consuming, the `Lapin.Connection` `payload_for/2` callback of the worker
+module allows you to return an instance of the data type you want to perform
+message decoding into. Again, an implementation of the `Lapin.Message.Payload`
+protocol is required for your custom `payload` data type (e.g. a struct).
 
 The `Lapin.Message.Payload` protocol documentation explains how to implement
 the required functions, and provides an example JSON to struct implementation.

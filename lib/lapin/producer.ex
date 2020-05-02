@@ -1,6 +1,6 @@
 defmodule Lapin.Producer do
   @moduledoc """
-  Extensible behaviour to define pattern modules.
+  Extensible behaviour to define producer configuration.
 
   Lapin provides a number of submodules which implement the patterns found in
   the [RabbitMQ Tutorials](http://www.rabbitmq.com/getstarted.html).
