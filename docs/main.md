@@ -15,7 +15,7 @@ Just add **Lapin** as a dependency to your `mix.exs`:
 
 ```elixir
 defp deps() do
-  [{:lapin, ">= 0.0.0"}]
+  [{:lapin, "~> 1.0.0"}]
 end
 ```
 

@@ -7,7 +7,7 @@
 ```elixir
 def deps do
   [
-    {:lapin, "~> 0.0.0"}
+    {:lapin, "~> 1.0.0"}
   ]
 end
 ```
