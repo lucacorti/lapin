@@ -16,9 +16,9 @@ defmodule Lapin.Connection do
 
   require Logger
 
-  alias Lapin.{Channel, Message}
-
-  import Lapin.Utils, only: [check_mandatory_params: 2]
+  alias AMQP.Channel
+  alias Lapin.{Consumer, Exchange, Message, Producer, Queue}
+  alias Lapin.Message.Payload
 
   @typedoc """
   Connection configuration
@@ -33,9 +33,10 @@ defmodule Lapin.Connection do
     - password: password (string)
     - auth_mechanisms: broker auth_mechanisms ([:amqplain | :external | :plain]), *default: amqp_client default*
     - ssl_options: ssl options ([:ssl:ssl_option]), *default: none*
-    - channels: channels to configure ([Channel.config]), *default: []*
+    - producers: producers to configure ([Producer.config]), *default: []*
+    - consumers: consumers to configure ([Consumer.config]), *default: []*
   """
-  @type config :: [channels: [Channel.config()]]
+  @type config :: [consumers: [Consumer.config()], producers: [Producer.config()]]
 
   @typedoc "Connection"
   @type t :: GenServer.server()
@@ -103,21 +104,21 @@ defmodule Lapin.Connection do
   A `Lapin.Message.Payload` implementation must be provided for this type. The
   default implementation leaves the payload unaltered.
   """
-  @callback payload_for(Channel.t(), Message.t()) :: Message.Payload.t()
+  @callback payload_for(Channel.t(), Message.t()) :: Payload.t()
 
   defmacro __using__(_) do
     quote do
-      alias Lapin.{Channel, Message}
+      alias Lapin.{Consumer, Message}
 
       @behaviour Lapin.Connection
 
-      def handle_cancel(_channel), do: :ok
-      def handle_cancel_ok(_channel), do: :ok
-      def handle_consume_ok(_channel), do: :ok
-      def handle_deliver(_channel, _message), do: :ok
-      def handle_publish(_channel, _message), do: :ok
-      def handle_return(_channel, _message), do: :ok
-      def payload_for(_channel, _message), do: <<>>
+      def handle_cancel(_consumer), do: :ok
+      def handle_cancel_ok(_consumer), do: :ok
+      def handle_consume_ok(_consumer), do: :ok
+      def handle_deliver(_consumer, _message), do: :ok
+      def handle_publish(_consumer, _message), do: :ok
+      def handle_return(_consumer, _message), do: :ok
+      def payload_for(_consumer, _message), do: <<>>
 
       defoverridable Lapin.Connection
 
@@ -143,13 +144,15 @@ defmodule Lapin.Connection do
 
   def init(configuration) do
     Process.flag(:trap_exit, true)
-    {:connect, :init, %{configuration: configuration, channels: [], connection: nil, module: nil}}
+
+    {:connect, :init,
+     %{configuration: configuration, consumers: [], producers: [], connection: nil, module: nil}}
   end
 
   @doc """
   Closes the connection
   """
-  @spec close(connection :: t) :: on_callback
+  @spec close(connection :: t) :: on_callback()
   def close(connection), do: GenServer.stop(connection)
 
   def terminate(_reason, %{connection: nil}), do: :ok
@@ -162,10 +165,10 @@ defmodule Lapin.Connection do
   Publishes a message to the specified exchange with the given routing_key
   """
   @spec publish(
-          connection :: t,
-          Channel.exchange(),
-          Channel.routing_key(),
-          Message.Payload.t(),
+          connection :: t(),
+          String.t(),
+          String.t(),
+          Payload.t(),
           options :: Keyword.t()
         ) :: on_callback
   def publish(connection, exchange, routing_key, payload, options \\ []) do
@@ -183,64 +186,45 @@ defmodule Lapin.Connection do
   def handle_call(
         {:publish, exchange, routing_key, payload, options},
         _from,
-        %{channels: channels, module: module} = state
+        %{producers: producers, module: module} = state
       ) do
-    with {:ok, %Channel{pattern: pattern} = channel} <-
-           Channel.get(channels, exchange, routing_key, :producer),
-         mandatory <- pattern.publisher_mandatory(channel),
-         persistent <- pattern.publisher_persistent(channel),
+    with {:ok, %Producer{pattern: pattern} = producer} <- Producer.get(producers, exchange),
+         mandatory <- pattern.mandatory(producer),
+         persistent <- pattern.persistent(producer),
          options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
-         content_type <- Message.Payload.content_type(payload),
-         meta <- %{content_type: content_type},
-         {:ok, payload} <- Message.Payload.encode(payload),
-         :ok <- Channel.publish(channel, exchange, routing_key, payload, options) do
+         meta <- %{content_type: Payload.content_type(payload)},
+         {:ok, payload} <- Payload.encode(payload),
+         :ok <- Producer.publish(producer, exchange, routing_key, payload, options) do
       message = %Message{meta: Enum.into(options, meta), payload: payload}
 
-      if not pattern.publisher_confirm(channel) or Channel.confirm(channel) do
-        Logger.debug(fn -> "Published #{inspect(message)} on #{inspect(channel)}" end)
-        {:reply, module.handle_publish(channel, message), state}
+      if not pattern.confirm(producer) or Producer.confirm(producer) do
+        Logger.debug(fn -> "Published #{inspect(message)} on #{inspect(producer)}" end)
+        {:reply, module.handle_publish(producer, message), state}
       else
         error = "Error publishing #{inspect(message)}"
         Logger.debug(fn -> error end)
         {:reply, {:error, error}, state}
       end
     else
-      :passive ->
-        error = "Cannot publish, channel role is :passive"
-        Logger.error(error)
+      {:error, error} ->
+        Logger.debug(fn -> "Error sending message: #{inspect(error)}" end)
         {:reply, {:error, error}, state}
-
-      :consumer ->
-        error = "Cannot publish, channel role is :consumer"
-        Logger.error(error)
-        {:reply, {:error, error}, state}
-
-      {:error, :channel_not_found} ->
-        error =
-          "Error publishing: no channel for exchange '#{exchange}' with routing key '#{
-            routing_key
-          }'"
-
-        Logger.debug(fn -> error end)
-        {:reply, {:error, error}, state}
-
-      {:error, reason} ->
-        Logger.debug(fn -> "Error sending message: #{inspect(reason)}" end)
-        {:reply, {:error, reason}, state}
     end
   end
 
   def handle_info(
         {:basic_cancel, %{consumer_tag: consumer_tag}},
-        %{channels: channels, module: module} = state
+        %{consumers: consumers, module: module} = state
       ) do
-    case Channel.get(channels, consumer_tag) do
-      {:ok, channel} ->
-        Logger.debug(fn -> "Broker cancelled consumer for #{inspect(channel)}" end)
-        module.handle_cancel(channel)
+    case Consumer.get(consumers, consumer_tag) do
+      {:ok, consumer} ->
+        Logger.debug(fn -> "Broker cancelled consumer for #{inspect(consumer)}" end)
+        module.handle_cancel(consumer)
 
-      {:error, :channel_not_found} ->
-        Logger.warn("Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown channel")
+      {:error, :not_found} ->
+        Logger.warn(
+          "Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown consumer"
+        )
     end
 
     {:stop, :normal, state}
@@ -248,13 +232,13 @@ defmodule Lapin.Connection do
 
   def handle_info(
         {:basic_cancel_ok, %{consumer_tag: consumer_tag}},
-        %{channels: channels, module: module} = state
+        %{consumers: consumers, module: module} = state
       ) do
-    with {:ok, channel} <- Channel.get(channels, consumer_tag),
-         :ok <- module.handle_cancel_ok(channel) do
-      Logger.debug(fn -> "Broker confirmed cancelling consumer for #{inspect(channel)}" end)
+    with {:ok, consumer} <- Consumer.get(consumers, consumer_tag),
+         :ok <- module.handle_cancel_ok(consumer) do
+      Logger.debug(fn -> "Broker confirmed cancelling consumer for #{inspect(consumer)}" end)
     else
-      {:error, :channel_not_found} ->
+      {:error, :not_found} ->
         Logger.debug(fn ->
           "Broker confirmed cancelling consumer for locally unknown tag '#{consumer_tag}'"
         end)
@@ -268,15 +252,15 @@ defmodule Lapin.Connection do
 
   def handle_info(
         {:basic_consume_ok, %{consumer_tag: consumer_tag}},
-        %{channels: channels, module: module} = state
+        %{consumers: consumers, module: module} = state
       ) do
-    with {:ok, channel} <- Channel.get(channels, consumer_tag),
-         :ok <- module.handle_consume_ok(channel) do
-      Logger.debug(fn -> "Broker registered consumer for #{inspect(channel)}" end)
+    with {:ok, consumer} <- Consumer.get(consumers, consumer_tag),
+         :ok <- module.handle_consume_ok(consumer) do
+      Logger.debug(fn -> "Broker registered consumer for #{inspect(consumer)}" end)
     else
-      {:error, :channel_not_found} ->
+      {:error, :not_found} ->
         Logger.warn(
-          "Broker registered consumer_tag '#{consumer_tag}' for locally unknown channel"
+          "Broker registered consumer_tag '#{consumer_tag}' for locally unknown consumer"
         )
 
       error ->
@@ -287,16 +271,16 @@ defmodule Lapin.Connection do
   end
 
   def handle_info(
-        {:basic_return, payload, %{exchange: exchange, routing_key: routing_key} = meta},
-        %{channels: channels, module: module} = state
+        {:basic_return, payload, %{exchange: exchange} = meta},
+        %{producers: producers, module: module} = state
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    with {:ok, channel} <- Channel.get(channels, exchange, routing_key, :producer),
-         :ok <- module.handle_return(channel, message) do
+    with {:ok, producer} <- Producer.get(producers, exchange),
+         :ok <- module.handle_return(producer, message) do
       Logger.debug(fn -> "Broker returned message #{inspect(message)}" end)
     else
-      {:error, :channel_not_found} ->
+      {:error, :not_found} ->
         Logger.warn("Broker returned message #{inspect(message)} for locally unknown channel")
 
       error ->
@@ -313,16 +297,16 @@ defmodule Lapin.Connection do
 
   def handle_info(
         {:basic_deliver, payload, %{consumer_tag: consumer_tag} = meta},
-        %{channels: channels, module: module} = state
+        %{consumers: consumers, module: module} = state
       ) do
     message = %Message{meta: meta, payload: payload}
 
-    case Channel.get(channels, consumer_tag) do
-      {:ok, channel} ->
-        spawn(fn -> consume(module, channel, meta, payload) end)
+    case Consumer.get(consumers, consumer_tag) do
+      {:ok, consumer} ->
+        spawn(fn -> consume(module, consumer, message) end)
 
-      {:error, :channel_not_found} ->
-        Logger.error("Error processing message #{inspect(message)}, no local channel")
+      {:error, :not_found} ->
+        Logger.error("Error processing message #{inspect(message)}, no local consumer")
     end
 
     {:noreply, state}
@@ -330,58 +314,58 @@ defmodule Lapin.Connection do
 
   defp consume(
          module,
-         %Channel{pattern: pattern} = channel,
-         %{delivery_tag: delivery_tag, redelivered: redelivered} = meta,
-         payload
+         %Consumer{pattern: pattern} = consumer,
+         %Message{
+           meta: %{delivery_tag: delivery_tag, redelivered: redelivered} = meta,
+           payload: payload
+         } = message
        ) do
-    message = %Message{meta: meta, payload: payload}
-
-    with consumer_ack <- pattern.consumer_ack(channel),
-         payload_for <- module.payload_for(channel, message),
-         content_type <- Message.Payload.content_type(payload_for),
-         message <- %Message{message | meta: Map.put(meta, :content_type, content_type)},
-         {:ok, payload} <- Message.Payload.decode_into(payload_for, payload),
-         message <- %Message{message | payload: payload},
-         :ok <- module.handle_deliver(channel, message) do
+    with ack <- pattern.ack(consumer),
+         payload_for <- module.payload_for(consumer, message),
+         content_type <- Payload.content_type(payload_for),
+         meta <- Map.put(meta, :content_type, content_type),
+         {:ok, payload} <- Payload.decode_into(payload_for, payload),
+         message <- %Message{message | meta: meta, payload: payload},
+         :ok <- module.handle_deliver(consumer, message) do
       Logger.debug(fn -> "Consuming message #{delivery_tag}" end)
-      consume_ack(consumer_ack, channel, delivery_tag)
+      consume_ack(ack, consumer, delivery_tag)
     else
       {:reject, reason} ->
-        case Channel.reject(channel, delivery_tag, false) do
+        case Consumer.reject_message(consumer, delivery_tag, false) do
           :ok ->
             Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
             :ok
 
-          error ->
-            Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
+          {:error, reason} ->
+            Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(reason)}")
         end
 
       reason ->
-        case Channel.reject(channel, delivery_tag, not redelivered) do
+        case Consumer.reject_message(consumer, delivery_tag, not redelivered) do
           :ok ->
             Logger.error("Rejected message #{delivery_tag}: #{inspect(reason)}")
             :ok
 
-          error ->
-            Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
+          {:error, reason} ->
+            Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(reason)}")
         end
     end
   rescue
     exception ->
-      case Channel.reject(channel, delivery_tag, not redelivered) do
+      case Consumer.reject_message(consumer, delivery_tag, not redelivered) do
         :ok ->
           Logger.error("Rejected message #{delivery_tag}: #{inspect(exception)}")
           :ok
 
-        error ->
-          Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(error)}")
+        {:error, reason} ->
+          Logger.debug("Failed rejecting message #{delivery_tag}: #{inspect(reason)}")
       end
   end
 
-  defp consume_ack(true = _consumer_ack, channel, delivery_tag) do
-    case Channel.ack(channel, delivery_tag) do
+  defp consume_ack(true = _consumer_ack, consumer, delivery_tag) do
+    case Consumer.ack_message(consumer, delivery_tag) do
       :ok ->
-        Logger.debug("Consumed message #{delivery_tag} successfully, ACK sent")
+        Logger.debug("Consumed message #{delivery_tag}, ACK sent")
         :ok
 
       error ->
@@ -390,7 +374,7 @@ defmodule Lapin.Connection do
     end
   end
 
-  defp consume_ack(false = _consumer_ack, _channel, delivery_tag) do
+  defp consume_ack(false = _ack, _channel, delivery_tag) do
     Logger.debug(fn -> "Consumed message #{delivery_tag}, ACK not required" end)
     :ok
   end
@@ -398,21 +382,26 @@ defmodule Lapin.Connection do
   def connect(_info, %{configuration: configuration} = state) do
     module = Keyword.get(configuration, :module)
 
-    with channels <- Keyword.get(configuration, :channels, []),
-         configuration <- Keyword.merge(@connection_default_params, configuration),
+    with configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- AMQP.Connection.open(configuration),
-         channels <-
-           Enum.reduce_while(channels, [], fn channel, acc ->
-             case Channel.create(connection, channel) do
-               {:ok, channel} ->
-                 {:cont, [channel | acc]}
-
-               {:error, _error} ->
-                 {:cont, acc}
-             end
-           end) do
+         {:ok, config_channel} <- Channel.open(connection),
+         {:ok, exchanges} <- declare_exchanges(configuration, config_channel),
+         {:ok, queues} <- declare_queues(configuration, config_channel),
+         :ok <- bind_exchanges(exchanges, config_channel),
+         :ok <- bind_queues(queues, config_channel),
+         {:ok, producers} <- create_producers(configuration, connection),
+         {:ok, consumers} <- create_consumers(configuration, connection),
+         :ok <- Channel.close(config_channel) do
       Process.monitor(connection.pid)
-      {:ok, %{state | module: module, channels: channels, connection: connection}}
+
+      {:ok,
+       %{
+         state
+         | module: module,
+           producers: producers,
+           consumers: consumers,
+           connection: connection
+       }}
     else
       {:error, error} ->
         Logger.error(fn ->
@@ -421,6 +410,54 @@ defmodule Lapin.Connection do
 
         {:backoff, @backoff, state}
     end
+  end
+
+  defp declare_exchanges(configuration, channel) do
+    exchanges =
+      configuration
+      |> Keyword.get(:exchanges, [])
+      |> Enum.map(fn {name, options} ->
+        name
+        |> Atom.to_string()
+        |> Exchange.new(options)
+      end)
+
+    {Enum.each(exchanges, &Exchange.declare(&1, channel)), exchanges}
+  end
+
+  defp bind_exchanges(exchanges, channel), do: Enum.each(exchanges, &Exchange.bind(&1, channel))
+
+  defp declare_queues(configuration, channel) do
+    queues =
+      configuration
+      |> Keyword.get(:queues, [])
+      |> Enum.map(fn {name, options} ->
+        name
+        |> Atom.to_string()
+        |> Queue.new(options)
+      end)
+
+    {Enum.each(queues, &Queue.declare(&1, channel)), queues}
+  end
+
+  defp bind_queues(queues, channel), do: Enum.each(queues, &Queue.bind(&1, channel))
+
+  defp create_producers(configuration, connection) do
+    producers =
+      configuration
+      |> Keyword.get(:producers, [])
+      |> Enum.map(&Producer.create(connection, &1))
+
+    {:ok, producers}
+  end
+
+  defp create_consumers(configuration, connection) do
+    consumers =
+      configuration
+      |> Keyword.get(:consumers, [])
+      |> Enum.map(&Consumer.create(connection, &1))
+
+    {:ok, consumers}
   end
 
   defp cleanup_configuration(configuration) do
@@ -524,4 +561,13 @@ defmodule Lapin.Connection do
   defp map_port(nil), do: @default_rabbitmq_port
   defp map_port(port) when is_binary(port), do: String.to_integer(port)
   defp map_port(port), do: port
+
+  defp check_mandatory_params(configuration, params) do
+    if Enum.all?(params, &Keyword.has_key?(configuration, &1)) do
+      :ok
+    else
+      missing_params = Enum.reject(params, &Keyword.has_key?(configuration, &1))
+      {:error, :missing_params, missing_params}
+    end
+  end
 end

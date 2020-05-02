@@ -16,7 +16,6 @@ jobs:
           host port: 5672
           rabbitmq user: 'test'
           rabbitmq password: 'test'
-          rabbitmq vhost: '/'
       - uses: actions/setup-elixir@v1
         with:
           otp-version: ${{matrix.otp}}
