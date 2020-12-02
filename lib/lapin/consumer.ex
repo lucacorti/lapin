@@ -6,8 +6,8 @@ defmodule Lapin.Consumer do
   the [RabbitMQ Tutorials](http://www.rabbitmq.com/getstarted.html).
 
   ```
-  defmodule ExampleApp.SomePatter do
-    use Lapin.Pattern
+  defmodule ExampleApp.SomeConsumer do
+    use Lapin.Consumer
 
     [... callbacks implementation ...]
   end
