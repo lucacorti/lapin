@@ -145,7 +145,7 @@ defmodule ExampleApp.Consumer do
 end
 
 defmodule ExampleApp.Producer do
-  use Lapin.Pattern
+  use Lapin.Producer
 
   def confirm(_channel), do: false
   def mandatory(_channel), do: true
