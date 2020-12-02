@@ -140,6 +140,8 @@ In fact `Lapin` bundles a few consumer/producer implementations for the
 
 ```elixir
 defmodule ExampleApp.Consumer do
+  use Lapin.Consumer
+
   def ack(_channel), do: true
   def consumer_prefetch(_channel), do: 1
 end
