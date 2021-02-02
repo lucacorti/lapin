@@ -30,7 +30,7 @@ defmodule Lapin.Mixfile do
   defp deps do
     [
       {:amqp, "~> 2.0"},
-      {:connection, "~> 1.1.0"},
+      {:connection, "~> 1.0"},
       {:ex_doc, ">= 0.0.0", only: [:dev]},
       {:earmark, ">= 0.0.0", only: [:dev]},
       {:credo, ">= 0.0.0", only: [:dev]},
