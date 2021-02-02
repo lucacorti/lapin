@@ -4,7 +4,7 @@ defmodule Lapin.Mixfile do
   def project do
     [
       app: :lapin,
-      version: "1.0.1",
+      version: "1.0.2",
       elixir: "~> 1.8",
       description: "Elixir RabbitMQ Client",
       source_url: "https://github.com/lucacorti/lapin",
