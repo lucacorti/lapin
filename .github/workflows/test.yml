@@ -56,6 +56,5 @@ jobs:
         with:
           path: _build
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
-      - run: mix deps.clean credentials_obfuscation
       - run: mix deps.get
       - run: mix test
