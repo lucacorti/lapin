@@ -54,11 +54,9 @@ jobs:
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
       - uses: actions/cache@v1
         env:
-          cache-name: build
+          cache-name: build-1
         with:
           path: _build
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
-      - run: mix local.hex --force
-      - run: mix local.rebar --force
       - run: mix deps.get
       - run: mix test
