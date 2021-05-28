@@ -38,8 +38,6 @@ jobs:
       matrix:
         otp: ['22', '23', '24']
         elixir: ['1.9', '1.10', '1.11', '1.12']
-        exclude:
-          - {'otp': '24', 'elixir': '1.9'}
     steps:
       - uses: actions/checkout@v2
       - uses: erlef/setup-beam@v1
@@ -58,5 +56,6 @@ jobs:
         with:
           path: _build
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
+      - run: mix deps.clean credentials_obfuscation
       - run: mix deps.get
       - run: mix test
