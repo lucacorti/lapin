@@ -46,7 +46,7 @@ jobs:
           elixir-version: ${{matrix.elixir}}
       - uses: actions/cache@v1
         env:
-          cache-name: mix1
+          cache-name: mix
         with:
           path: ~/.mix
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
