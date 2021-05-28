@@ -493,9 +493,7 @@ defmodule Lapin.Connection do
         params = Enum.join(missing_params, ", ")
 
         error =
-          "Error creating connection #{inspect(configuration)}: missing mandatory params: #{
-            params
-          }"
+          "Error creating connection #{inspect(configuration)}: missing mandatory params: #{params}"
 
         Logger.error(error)
         {:error, error}

@@ -124,9 +124,7 @@ defmodule Lapin.Consumer do
 
       error ->
         Logger.error(
-          "Error #{if requeue, do: "requeueing", else: "rejecting"} message #{delivery_tag}: #{
-            inspect(error)
-          }"
+          "Error #{if requeue, do: "requeueing", else: "rejecting"} message #{delivery_tag}: #{inspect(error)}"
         )
 
         error
