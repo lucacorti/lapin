@@ -1,21 +1,15 @@
 on: [push]
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
-    name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    name: Lint (OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}})
     strategy:
       matrix:
-        otp: [22, 23]
-        elixir: ['1.8', '1.9', '1.10', '1.11']
+        otp: ['24']
+        elixir: ['1.12']
     steps:
       - uses: actions/checkout@v2
-      - uses: getong/rabbitmq-action@v1.2
-        with:
-          rabbitmq version: 'latest'
-          host port: 5672
-          rabbitmq user: 'test'
-          rabbitmq password: 'test'
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
@@ -25,14 +19,44 @@ jobs:
           cache-name: mix
         with:
           path: ~/.mix
-          key: cache-${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
       - uses: actions/cache@v1
         env:
           cache-name: build
         with:
           path: _build
-          key: cache-${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
       - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix format --check-formatted
       - run: mix credo --strict --all
       - run: mix dialyzer
+  test:
+    runs-on: ubuntu-latest
+    name: Test (OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}})
+    strategy:
+      matrix:
+        otp: ['21', '22', '23', '24']
+        elixir: ['1.8', '1.9', '1.10', '1.11', '1.12']
+        exclude:
+          - {otp: '21', elixir: '1.12'}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{matrix.otp}}
+          elixir-version: ${{matrix.elixir}}
+      - uses: actions/cache@v1
+        env:
+          cache-name: mix
+        with:
+          path: ~/.mix
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
+      - uses: actions/cache@v1
+        env:
+          cache-name: build
+        with:
+          path: _build
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.otp }}-${{ matrix.elixir }}
+      - run: mix deps.get
       - run: mix test
