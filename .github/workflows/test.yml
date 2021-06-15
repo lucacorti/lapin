@@ -10,12 +10,6 @@ jobs:
         elixir: ['1.12']
     steps:
       - uses: actions/checkout@v2
-      - uses: getong/rabbitmq-action@v1.2
-        with:
-          rabbitmq version: 'latest'
-          host port: 5672
-          rabbitmq user: 'test'
-          rabbitmq password: 'test'
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
@@ -46,6 +40,12 @@ jobs:
         elixir: ['1.9', '1.10', '1.11', '1.12']
     steps:
       - uses: actions/checkout@v2
+      - uses: getong/rabbitmq-action@v1.2
+        with:
+          rabbitmq version: 'latest'
+          host port: 5672
+          rabbitmq user: 'test'
+          rabbitmq password: 'test'
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
