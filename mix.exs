@@ -13,6 +13,7 @@ defmodule Lapin.Mixfile do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       dialyzer: [
+        plt_add_apps: [:ex_unit, :amqp_client],
         plt_add_deps: :apps_direct,
         ignore_warnings: ".dialyzer.ignore-warnings"
       ]
