@@ -30,7 +30,7 @@ defmodule Lapin.Mixfile do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:amqp, "~> 1.0 or ~> 2.0"},
+      {:amqp, "~> 1.0 or ~> 2.0 or ~> 3.0"},
       {:connection, "~> 1.0"},
       {:ex_doc, ">= 0.0.0", only: [:dev]},
       {:earmark, ">= 0.0.0", only: [:dev]},
