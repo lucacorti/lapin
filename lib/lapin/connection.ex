@@ -354,7 +354,10 @@ defmodule Lapin.Connection do
     exception ->
       case Consumer.reject_message(consumer, delivery_tag, not redelivered) do
         :ok ->
-          Logger.error("Rejected message #{delivery_tag}: #{inspect(exception)}")
+          Logger.error(
+            "Rejected message #{delivery_tag}: #{Exception.format(:error, exception, __STACKTRACE__)}"
+          )
+
           :ok
 
         {:error, reason} ->
