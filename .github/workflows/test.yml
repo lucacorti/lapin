@@ -36,11 +36,13 @@ jobs:
     name: Test (OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}})
     strategy:
       matrix:
-        otp: ['23', '24', '25']
-        elixir: ['1.10', '1.11', '1.12', '1.14']
+        elixir: ['1.14', '1.13', '1.12', '1.11']
+        # All of the above can use this version. For details see: https://hexdocs.pm/elixir/compatibility-and-deprecations.html#compatibility-between-elixir-and-erlang-otp
+        otp: ['25', '24', '23', '22']
         exclude:
-          - {otp: '24', elixir: '1.10'}
-          - {otp: '25', elixir: '1.10'}
+          - {otp: '22', elixir: '1.14'}
+          - {otp: '25', elixir: '1.11'}
+          - {otp: '25', elixir: '1.12'}
     steps:
       - uses: actions/checkout@v2
       - uses: getong/rabbitmq-action@v1.2
