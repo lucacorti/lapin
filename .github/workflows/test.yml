@@ -15,10 +15,9 @@ jobs:
     name: Test (OTP ${{ matrix.otp }} / Elixir ${{ matrix.elixir }})
     strategy:
       matrix:
-        otp: ['25', '24', '23', '22']
+        otp: ['25', '24', '23']
         elixir: ['1.14', '1.13', '1.12', '1.11']
         exclude:
-          - {otp: '22', elixir: '1.14'}
           - {otp: '25', elixir: '1.11'}
           - {otp: '25', elixir: '1.12'}
     steps:
