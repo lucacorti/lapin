@@ -38,6 +38,12 @@ jobs:
         otp: ['25']
     steps:
       - uses: actions/checkout@v2
+      - uses: getong/rabbitmq-action@v1.2
+        with:
+          rabbitmq version: 'latest'
+          host port: 5672
+          rabbitmq user: 'test'
+          rabbitmq password: 'test'
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{ matrix.otp }}
