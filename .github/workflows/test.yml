@@ -15,12 +15,10 @@ jobs:
     name: Test (OTP ${{ matrix.otp }} / Elixir ${{ matrix.elixir }})
     services:
       rabbitmq:
-        image: rabbitmq:latest
-        env:
-          RABBITMQ_DEFAULT_USER: guest
-          RABBITMQ_DEFAULT_PASS: guest
+        image: rabbitmq:3-management
         ports:
           - 5672:5672
+        options: --health-cmd "rabbitmqctl node_health_check" --health-interval 10s --health-timeout 5s --health-retries 5
     strategy:
       matrix:
         elixir: ['1.14', '1.13', '1.12', '1.11']
