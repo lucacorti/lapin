@@ -6,6 +6,7 @@ alias Lapin.{Consumer, Producer}
 config :lapin, :connections, [
   [
     module: LapinTest.Worker,
+    host: "127.0.0.1",
     username: "test",
     password: "test",
     exchanges: [
