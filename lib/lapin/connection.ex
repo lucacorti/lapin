@@ -53,19 +53,19 @@ defmodule Lapin.Connection do
   @doc """
   Called when receiving a `basic.cancel` from the broker.
   """
-  @callback handle_cancel(Channel.t()) :: on_callback
+  @callback handle_cancel(Consumer.t()) :: on_callback
 
   @doc """
   Called when receiving a `basic.cancel_ok` from the broker.
   """
-  @callback handle_cancel_ok(Channel.t()) :: on_callback
+  @callback handle_cancel_ok(Consumer.t()) :: on_callback
 
   @doc """
   Called when receiving a `basic.consume_ok` from the broker.
 
   This signals successul registration as a consumer.
   """
-  @callback handle_consume_ok(Channel.t()) :: on_callback
+  @callback handle_consume_ok(Consumer.t()) :: on_callback
 
   @doc """
   Called when receiving a `basic.deliver` from the broker.
@@ -81,21 +81,21 @@ defmodule Lapin.Connection do
   The `reason` term can be used by the application
   to signal the reason of rejection and is logged in debug.
   """
-  @callback handle_deliver(Channel.t(), Message.t()) :: on_deliver
+  @callback handle_deliver(Consumer.t(), Message.t()) :: on_deliver
 
   @doc """
   Called when completing a `basic.publish` with the broker.
 
   Message transmission to the broker is successful when this callback is called.
   """
-  @callback handle_publish(Channel.t(), Message.t()) :: on_callback
+  @callback handle_publish(Producer.t(), Message.t()) :: on_callback
 
   @doc """
   Called when receiving a `basic.return` from the broker.
 
   This signals an undeliverable returned message from the broker.
   """
-  @callback handle_return(Channel.t(), Message.t()) :: on_callback
+  @callback handle_return(Consumer.t(), Message.t()) :: on_callback
 
   @doc """
   Called before `handle_deliver/2` to get the payload type.
@@ -104,7 +104,7 @@ defmodule Lapin.Connection do
   A `Lapin.Message.Payload` implementation must be provided for this type. The
   default implementation leaves the payload unaltered.
   """
-  @callback payload_for(Channel.t(), Message.t()) :: Payload.t()
+  @callback payload_for(Consumer.t(), Message.t()) :: Payload.t()
 
   defmacro __using__(_) do
     quote do
