@@ -130,7 +130,7 @@ defmodule Lapin.Connection do
 
   @backoff 1_000
   @connection_default_params [connection_timeout: @backoff]
-  @default_rabbitmq_host 'localhost'
+  @default_rabbitmq_host ~c"localhost"
   @default_rabbitmq_port 5672
 
   @doc """
@@ -222,7 +222,7 @@ defmodule Lapin.Connection do
         module.handle_cancel(consumer)
 
       {:error, :not_found} ->
-        Logger.warn(
+        Logger.warning(
           "Broker cancelled consumer_tag '#{consumer_tag}' for locally unknown consumer"
         )
     end
@@ -259,7 +259,7 @@ defmodule Lapin.Connection do
       Logger.debug(fn -> "Broker registered consumer for #{inspect(consumer)}" end)
     else
       {:error, :not_found} ->
-        Logger.warn(
+        Logger.warning(
           "Broker registered consumer_tag '#{consumer_tag}' for locally unknown consumer"
         )
 
@@ -281,7 +281,7 @@ defmodule Lapin.Connection do
       Logger.debug(fn -> "Broker returned message #{inspect(message)}" end)
     else
       {:error, :not_found} ->
-        Logger.warn("Broker returned message #{inspect(message)} for locally unknown channel")
+        Logger.warning("Broker returned message #{inspect(message)} for locally unknown channel")
 
       error ->
         Logger.debug(fn -> "Error handling returned message: #{inspect(error)}" end)
@@ -291,7 +291,7 @@ defmodule Lapin.Connection do
   end
 
   def handle_info({:DOWN, _, :process, _pid, _reason}, state) do
-    Logger.warn("Connection down, restarting...")
+    Logger.warning("Connection down, restarting...")
     {:stop, :normal, state}
   end
 
