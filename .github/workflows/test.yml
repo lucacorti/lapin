@@ -46,8 +46,8 @@ jobs:
     name: Linting
     strategy:
       matrix:
-        elixir: ['1.14']
-        otp: ['25']
+        elixir: ['1.15']
+        otp: ['26']
     steps:
       - uses: actions/checkout@v3
       - uses: erlef/setup-beam@v1
