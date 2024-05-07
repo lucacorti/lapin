@@ -289,7 +289,7 @@ defmodule Lapin.Connection do
 
   def handle_info({:DOWN, _, :process, _pid, _reason}, state) do
     Logger.warning("Connection down, restarting...")
-    {:stop, :normal, state}
+    {:stop, :normal, %{state | connection: nil}}
   end
 
   def handle_info(
