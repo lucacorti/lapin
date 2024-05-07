@@ -46,7 +46,7 @@ jobs:
     name: Linting
     strategy:
       matrix:
-        elixir: ['1.15']
+        elixir: ['1.16']
         otp: ['26']
     steps:
       - uses: actions/checkout@v3
