@@ -393,8 +393,6 @@ defmodule Lapin.Connection do
          {:ok, producers} <- create_producers(configuration, connection),
          {:ok, consumers} <- create_consumers(configuration, connection),
          :ok <- AMQP.Channel.close(config_channel) do
-      Process.monitor(connection.pid)
-
       {:ok,
        %{
          state
