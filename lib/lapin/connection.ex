@@ -16,7 +16,6 @@ defmodule Lapin.Connection do
 
   require Logger
 
-  alias AMQP.Channel
   alias Lapin.{Consumer, Exchange, Message, Producer, Queue}
   alias Lapin.Message.Payload
 
@@ -385,14 +384,15 @@ defmodule Lapin.Connection do
 
     with configuration <- Keyword.merge(@connection_default_params, configuration),
          {:ok, connection} <- AMQP.Connection.open(configuration),
-         {:ok, config_channel} <- Channel.open(connection),
+         _ref = Process.monitor(connection.pid),
+         {:ok, config_channel} <- AMQP.Channel.open(connection),
          {:ok, exchanges} <- declare_exchanges(configuration, config_channel),
          {:ok, queues} <- declare_queues(configuration, config_channel),
          :ok <- bind_exchanges(exchanges, config_channel),
          :ok <- bind_queues(queues, config_channel),
          {:ok, producers} <- create_producers(configuration, connection),
          {:ok, consumers} <- create_consumers(configuration, connection),
-         :ok <- Channel.close(config_channel) do
+         :ok <- AMQP.Channel.close(config_channel) do
       Process.monitor(connection.pid)
 
       {:ok,
