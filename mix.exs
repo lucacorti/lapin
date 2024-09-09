@@ -32,10 +32,9 @@ defmodule Lapin.Mixfile do
     [
       {:amqp, "~> 3.0"},
       {:connection, "~> 1.0"},
-      {:ex_doc, ">= 0.0.0", only: [:dev]},
-      {:earmark, ">= 0.0.0", only: [:dev]},
-      {:credo, ">= 0.0.0", only: [:dev]},
-      {:dialyxir, ">= 0.0.0", only: [:dev]}
+      {:ex_doc, ">= 0.0.0", only: [:dev, :test], runtime: false},
+      {:credo, ">= 0.0.0", only: [:dev], runtime: false},
+      {:dialyxir, ">= 0.0.0", only: [:dev], runtime: false}
     ]
   end
 
