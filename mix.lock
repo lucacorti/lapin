@@ -1,5 +1,5 @@
 %{
-  "amqp": {:hex, :amqp, "3.3.1", "5ed985094e687debf05de289c7af324df1ebf3074cff21be1841906a567ea477", [:mix], [{:amqp_client, "~> 3.9", [hex: :amqp_client, repo: "hexpm", optional: false]}], "hexpm", "98ce4a662b223ebc9c05f4454999cf15a8bee05a4075fa535a22be538b055f85"},
+  "amqp": {:hex, :amqp, "3.3.2", "6cad7469957b29c517a26a27474828f1db28278a13bcc2e7970db9854a3d3080", [:mix], [{:amqp_client, "~> 3.9", [hex: :amqp_client, repo: "hexpm", optional: false]}], "hexpm", "f977c41d81b65a21234a9158e6491b2296f8bd5bda48d5b611a64b6e0d2c3f31"},
   "amqp_client": {:hex, :amqp_client, "3.12.14", "2b677bc3f2e2234ba7517042b25d72071a79735042e91f9116bd3c176854b622", [:make, :rebar3], [{:credentials_obfuscation, "3.4.0", [hex: :credentials_obfuscation, repo: "hexpm", optional: false]}, {:rabbit_common, "3.12.14", [hex: :rabbit_common, repo: "hexpm", optional: false]}], "hexpm", "5f70b6c3b1a739790080da4fddc94a867e99f033c4b1edc20d6ff8b8fb4bd160"},
   "bunt": {:hex, :bunt, "1.0.0", "081c2c665f086849e6d57900292b3a161727ab40431219529f13c4ddcf3e7a44", [:mix], [], "hexpm", "dc5f86aa08a5f6fa6b8096f0735c4e76d54ae5c9fa2c143e5a1fc7c1cd9bb6b5"},
   "connection": {:hex, :connection, "1.1.0", "ff2a49c4b75b6fb3e674bfc5536451607270aac754ffd1bdfe175abe4a6d7a68", [:mix], [], "hexpm", "722c1eb0a418fbe91ba7bd59a47e28008a189d47e37e0e7bb85585a016b2869c"},
