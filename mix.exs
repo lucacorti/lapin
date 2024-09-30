@@ -14,8 +14,7 @@ defmodule Lapin.Mixfile do
       deps: deps(),
       dialyzer: [
         plt_add_apps: [:ex_unit, :amqp_client],
-        plt_add_deps: :apps_direct,
-        ignore_warnings: ".dialyzer.ignore-warnings"
+        plt_add_deps: :apps_direct
       ]
     ]
   end
