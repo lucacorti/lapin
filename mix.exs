@@ -29,7 +29,7 @@ defmodule Lapin.Mixfile do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:amqp, "~> 3.0"},
+      {:amqp, "~> 4.0"},
       {:connection, "~> 1.0"},
       {:ex_doc, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:credo, ">= 0.0.0", only: [:dev], runtime: false},
