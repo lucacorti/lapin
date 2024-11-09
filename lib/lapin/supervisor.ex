@@ -1,7 +1,8 @@
 defmodule Lapin.Supervisor do
-  @moduledoc false
+  @moduledoc "Lapin Supervisor"
 
   use Supervisor
+
   require Logger
 
   @spec start_link :: Supervisor.on_start()
