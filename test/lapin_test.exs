@@ -6,6 +6,7 @@ defmodule LapinTest do
     use Lapin.Connection
     require Logger
 
+    @impl Lapin.Connection
     def handle_deliver(consumer, message) do
       Logger.debug(fn ->
         "Consuming message #{inspect(message, pretty: true)} received on #{inspect(consumer, pretty: true)}"
