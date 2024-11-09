@@ -12,8 +12,6 @@ defmodule Lapin.Connection do
   to publish messages on the connection configured for the implementing module.
   """
 
-  use Connection
-
   require Logger
 
   alias Lapin.{Consumer, Exchange, Message, Producer, Queue}
@@ -38,16 +36,16 @@ defmodule Lapin.Connection do
   @type config :: [consumers: [Consumer.config()], producers: [Producer.config()]]
 
   @typedoc "Connection"
-  @type t :: GenServer.server()
+  @type t :: :gen_statem.server_ref()
 
   @typedoc "Callback result"
   @type on_callback :: :ok | {:error, message :: String.t()}
 
   @typedoc "Reason for message rejection"
-  @type reason :: term
+  @type reason :: term()
 
   @typedoc "`handle_deliver/2` callback result"
-  @type on_deliver :: :ok | {:reject, reason} | term
+  @type on_deliver :: :ok | {:reject, reason} | term()
 
   @doc """
   Called when receiving a `basic.cancel` from the broker.
@@ -138,25 +136,14 @@ defmodule Lapin.Connection do
   @spec start_link(config, options :: GenServer.options()) :: GenServer.on_start()
   def start_link(configuration, options \\ []) do
     {:ok, configuration} = cleanup_configuration(configuration)
-    Connection.start_link(__MODULE__, configuration, options)
-  end
-
-  def init(configuration) do
-    {
-      :connect,
-      :init,
-      %{configuration: configuration, consumers: [], producers: [], connection: nil, module: nil}
-    }
+    :gen_statem.start_link({:local, options[:name]}, __MODULE__, configuration, [])
   end
 
   @doc """
   Closes the connection
   """
   @spec close(connection :: t) :: on_callback()
-  def close(connection), do: GenServer.stop(connection)
-
-  def terminate(_reason, %{connection: nil}), do: :ok
-  def terminate(_reason, %{connection: connection}), do: AMQP.Connection.close(connection)
+  def close(connection), do: :gen_statem.stop(connection)
 
   @doc """
   Publishes a message to the specified exchange with the given routing_key
@@ -169,20 +156,51 @@ defmodule Lapin.Connection do
           options :: Keyword.t()
         ) :: on_callback
   def publish(connection, exchange, routing_key, payload, options \\ []),
-    do: Connection.call(connection, {:publish, exchange, routing_key, payload, options})
+    do: :gen_statem.call(connection, {:publish, exchange, routing_key, payload, options})
 
-  def handle_call(
-        {:publish, _exchange, _routing_key, _payload, _options},
-        _from,
-        %{connection: nil} = state
-      ) do
-    {:reply, {:error, :not_connected}, state}
+  @behaviour :gen_statem
+
+  @impl :gen_statem
+  def callback_mode, do: [:handle_event_function, :state_enter]
+
+  @impl :gen_statem
+  def init(configuration) do
+    {
+      :ok,
+      :disconnected,
+      %{
+        configuration: configuration,
+        connection: nil,
+        consumers: [],
+        producers: [],
+        module: nil
+      },
+      {:next_event, :internal, :connect}
+    }
   end
 
-  def handle_call(
+  @impl :gen_statem
+  def handle_event(:enter, old_state, current_state, _data) do
+    Logger.info("#{inspect(old_state)} -> #{inspect(current_state)}")
+    :keep_state_and_data
+  end
+
+  @impl :gen_statem
+  def handle_event(
+        {:call, from},
+        {:publish, _exchange, _routing_key, _payload, _options},
+        :disconnected,
+        %{connection: nil}
+      ) do
+    {:keep_state_and_data, {:reply, from, {:error, :not_connected}}}
+  end
+
+  @impl :gen_statem
+  def handle_event(
+        {:call, from},
         {:publish, exchange, routing_key, payload, options},
-        _from,
-        %{producers: producers, module: module} = state
+        :connected,
+        %{producers: producers, module: module}
       ) do
     with {:ok, %Producer{pattern: pattern} = producer} <- Producer.get(producers, exchange),
          mandatory = pattern.mandatory(producer),
@@ -195,22 +213,25 @@ defmodule Lapin.Connection do
 
       if not pattern.confirm(producer) or Producer.confirm(producer) do
         Logger.debug(fn -> "Published #{inspect(message)} on #{inspect(producer)}" end)
-        {:reply, module.handle_publish(producer, message), state}
+        {:keep_state_and_data, {:reply, from, module.handle_publish(producer, message)}}
       else
         error = "Error publishing #{inspect(message)}"
         Logger.debug(fn -> error end)
-        {:reply, {:error, error}, state}
+        {:keep_state_and_data, {:reply, from, {:error, error}}}
       end
     else
       {:error, error} ->
         Logger.debug(fn -> "Error sending message: #{inspect(error)}" end)
-        {:reply, {:error, error}, state}
+        {:keep_state_and_data, {:reply, from, {:error, error}}}
     end
   end
 
-  def handle_info(
+  @impl :gen_statem
+  def handle_event(
+        :info,
         {:basic_cancel, %{consumer_tag: consumer_tag}},
-        %{consumers: consumers, module: module} = state
+        :connected,
+        %{consumers: consumers, module: module}
       ) do
     case Consumer.get(consumers, consumer_tag) do
       {:ok, consumer} ->
@@ -223,12 +244,15 @@ defmodule Lapin.Connection do
         )
     end
 
-    {:stop, :normal, state}
+    {:stop, :normal}
   end
 
-  def handle_info(
+  @impl :gen_statem
+  def handle_event(
+        :info,
         {:basic_cancel_ok, %{consumer_tag: consumer_tag}},
-        %{consumers: consumers, module: module} = state
+        :connected,
+        %{consumers: consumers, module: module}
       ) do
     with {:ok, consumer} <- Consumer.get(consumers, consumer_tag),
          :ok <- module.handle_cancel_ok(consumer) do
@@ -243,12 +267,15 @@ defmodule Lapin.Connection do
         Logger.error("Error handling broker cancel for '#{consumer_tag}': #{inspect(error)}")
     end
 
-    {:noreply, state}
+    :keep_state_and_data
   end
 
-  def handle_info(
+  @impl :gen_statem
+  def handle_event(
+        :info,
         {:basic_consume_ok, %{consumer_tag: consumer_tag}},
-        %{consumers: consumers, module: module} = state
+        :connected,
+        %{consumers: consumers, module: module}
       ) do
     with {:ok, consumer} <- Consumer.get(consumers, consumer_tag),
          :ok <- module.handle_consume_ok(consumer) do
@@ -263,17 +290,20 @@ defmodule Lapin.Connection do
         Logger.error("Error handling broker register for '#{consumer_tag}': #{inspect(error)}")
     end
 
-    {:noreply, state}
+    :keep_state_and_data
   end
 
-  def handle_info(
+  @impl :gen_statem
+  def handle_event(
+        :info,
         {:basic_return, payload, %{exchange: exchange} = meta},
-        %{producers: producers, module: module} = state
+        :connected,
+        %{producers: producers, module: module}
       ) do
     message = %Message{meta: meta, payload: payload}
 
     with {:ok, producer} <- Producer.get(producers, exchange),
-         :ok <- module.handle_return(producer, message) do
+         :ok <- module.handle_return(producer, %Message{meta: meta, payload: payload}) do
       Logger.debug(fn -> "Broker returned message #{inspect(message)}" end)
     else
       {:error, :not_found} ->
@@ -283,17 +313,21 @@ defmodule Lapin.Connection do
         Logger.debug(fn -> "Error handling returned message: #{inspect(error)}" end)
     end
 
-    {:noreply, state}
+    :keep_state_and_data
   end
 
-  def handle_info({:DOWN, _, :process, _pid, _reason}, state) do
-    Logger.warning("Connection down, restarting...")
-    {:stop, :normal, %{state | connection: nil}}
+  @impl :gen_statem
+  def handle_event(:info, {:DOWN, _, :process, _pid, _reason}, :connected, _data) do
+    Logger.warning("Connection down, reconnecting...")
+    {:stop, :normal}
   end
 
-  def handle_info(
+  @impl :gen_statem
+  def handle_event(
+        :info,
         {:basic_deliver, payload, %{consumer_tag: consumer_tag} = meta},
-        %{consumers: consumers, module: module} = state
+        :connected,
+        %{consumers: consumers, module: module}
       ) do
     message = %Message{meta: meta, payload: payload}
 
@@ -305,8 +339,58 @@ defmodule Lapin.Connection do
         Logger.error("Error processing message #{inspect(message)}, no local consumer")
     end
 
-    {:noreply, state}
+    :keep_state_and_data
   end
+
+  @impl :gen_statem
+  def handle_event(:internal, :disconnect, _state, data) do
+    {
+      :next_state,
+      :disconnected,
+      data,
+      {:state_timeout, @backoff, nil}
+    }
+  end
+
+  @impl :gen_statem
+  def handle_event(:internal, :connect, :disconnected, %{configuration: configuration} = data) do
+    module = Keyword.get(configuration, :module)
+
+    with configuration <- Keyword.merge(@connection_default_params, configuration),
+         {:ok, connection} <- AMQP.Connection.open(configuration),
+         _ref = Process.monitor(connection.pid),
+         {:ok, config_channel} <- AMQP.Channel.open(connection),
+         {:ok, exchanges} <- declare_exchanges(configuration, config_channel),
+         {:ok, queues} <- declare_queues(configuration, config_channel),
+         :ok <- bind_exchanges(exchanges, config_channel),
+         :ok <- bind_queues(queues, config_channel),
+         {:ok, producers} <- create_producers(configuration, connection),
+         {:ok, consumers} <- create_consumers(configuration, connection),
+         :ok <- AMQP.Channel.close(config_channel) do
+      {
+        :next_state,
+        :connected,
+        %{
+          data
+          | module: module,
+            producers: producers,
+            consumers: consumers,
+            connection: connection
+        }
+      }
+    else
+      {:error, error} ->
+        Logger.error(fn ->
+          "Connection error: #{inspect(error)} for #{module}, backing off for #{@backoff}"
+        end)
+
+        {:keep_state_and_data, {:state_timeout, @backoff, nil}}
+    end
+  end
+
+  @impl :gen_statem
+  def handle_event(:state_timeout, _event, :disconnected, _data),
+    do: {:keep_state_and_data, {:next_event, :internal, :connect}}
 
   defp consume(
          module,
@@ -376,38 +460,6 @@ defmodule Lapin.Connection do
   defp consume_ack(false = _ack, _channel, delivery_tag) do
     Logger.debug(fn -> "Consumed message #{delivery_tag}, ACK not required" end)
     :ok
-  end
-
-  def connect(_info, %{configuration: configuration} = state) do
-    module = Keyword.get(configuration, :module)
-
-    with configuration <- Keyword.merge(@connection_default_params, configuration),
-         {:ok, connection} <- AMQP.Connection.open(configuration),
-         _ref = Process.monitor(connection.pid),
-         {:ok, config_channel} <- AMQP.Channel.open(connection),
-         {:ok, exchanges} <- declare_exchanges(configuration, config_channel),
-         {:ok, queues} <- declare_queues(configuration, config_channel),
-         :ok <- bind_exchanges(exchanges, config_channel),
-         :ok <- bind_queues(queues, config_channel),
-         {:ok, producers} <- create_producers(configuration, connection),
-         {:ok, consumers} <- create_consumers(configuration, connection),
-         :ok <- AMQP.Channel.close(config_channel) do
-      {:ok,
-       %{
-         state
-         | module: module,
-           producers: producers,
-           consumers: consumers,
-           connection: connection
-       }}
-    else
-      {:error, error} ->
-        Logger.error(fn ->
-          "Connection error: #{inspect(error)} for #{module}, backing off for #{@backoff}"
-        end)
-
-        {:backoff, @backoff, state}
-    end
   end
 
   defp declare_exchanges(configuration, channel) do
