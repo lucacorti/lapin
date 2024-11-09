@@ -10,4 +10,4 @@ Check `amqp` release notes for more details: https://github.com/pma/amqp/wiki/4.
 
 - Require Elixir 1.15+ and OTP 26+
 - Update CI
-- Rewrite the internals on `Lapin.Connection` to use `:gen_statem` and remove `Connection` depenency
+- Rewrite the internals on `Lapin.Connection` to use `:gen_statem` and remove `Connection` dependency
