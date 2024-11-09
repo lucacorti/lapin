@@ -23,7 +23,7 @@ jobs:
       matrix:
         # For details see: https://hexdocs.pm/elixir/compatibility-and-deprecations.html#compatibility-between-elixir-and-erlang-otp
         elixir: ["1.17", "1.16", "1.15", "1.14"]
-        otp: ["27", "26", "25"]
+        otp: ["27", "26"]
         exclude:
           - { otp: "27", elixir: "1.16" }
           - { otp: "27", elixir: "1.15" }
@@ -53,7 +53,7 @@ jobs:
           elixir-version: ${{ matrix.elixir }}
         id: beam
       - name: PLT cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           key: |
             ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
