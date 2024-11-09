@@ -5,7 +5,7 @@ on:
     types: [opened, reopened, synchronize]
   push:
     branches:
-      - 'master'
+      - "master"
 
 jobs:
   test:
@@ -22,23 +22,13 @@ jobs:
     strategy:
       matrix:
         # For details see: https://hexdocs.pm/elixir/compatibility-and-deprecations.html#compatibility-between-elixir-and-erlang-otp
-        elixir: ["1.17", "1.16", "1.15", "1.14", "1.13"]
-        otp: ["27", "26", "25", "24", "23"]
+        elixir: ["1.17", "1.16", "1.15", "1.14"]
+        otp: ["27", "26"]
         exclude:
-          - { otp: "24", elixir: "1.17" }
-          - { otp: "23", elixir: "1.17" }
-          - { otp: "22", elixir: "1.17" }
           - { otp: "27", elixir: "1.16" }
-          - { otp: "23", elixir: "1.16" }
-          - { otp: "22", elixir: "1.16" }
           - { otp: "27", elixir: "1.15" }
-          - { otp: "23", elixir: "1.15" }
           - { otp: "27", elixir: "1.14" }
           - { otp: "26", elixir: "1.14" }
-          - { otp: "22", elixir: "1.14" }
-          - { otp: "27", elixir: "1.13" }
-          - { otp: "26", elixir: "1.13" }
-          - { otp: "25", elixir: "1.13" }
     steps:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
@@ -53,8 +43,8 @@ jobs:
     name: Linting
     strategy:
       matrix:
-        elixir: ['1.16']
-        otp: ['26']
+        elixir: ["1.17"]
+        otp: ["27"]
     steps:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
@@ -63,7 +53,7 @@ jobs:
           elixir-version: ${{ matrix.elixir }}
         id: beam
       - name: PLT cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           key: |
             ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt

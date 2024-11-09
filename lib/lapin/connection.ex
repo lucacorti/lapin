@@ -142,8 +142,11 @@ defmodule Lapin.Connection do
   end
 
   def init(configuration) do
-    {:connect, :init,
-     %{configuration: configuration, consumers: [], producers: [], connection: nil, module: nil}}
+    {
+      :connect,
+      :init,
+      %{configuration: configuration, consumers: [], producers: [], connection: nil, module: nil}
+    }
   end
 
   @doc """
@@ -153,10 +156,7 @@ defmodule Lapin.Connection do
   def close(connection), do: GenServer.stop(connection)
 
   def terminate(_reason, %{connection: nil}), do: :ok
-
-  def terminate(_reason, %{connection: connection}) do
-    AMQP.Connection.close(connection)
-  end
+  def terminate(_reason, %{connection: connection}), do: AMQP.Connection.close(connection)
 
   @doc """
   Publishes a message to the specified exchange with the given routing_key
@@ -168,9 +168,8 @@ defmodule Lapin.Connection do
           Payload.t(),
           options :: Keyword.t()
         ) :: on_callback
-  def publish(connection, exchange, routing_key, payload, options \\ []) do
-    Connection.call(connection, {:publish, exchange, routing_key, payload, options})
-  end
+  def publish(connection, exchange, routing_key, payload, options \\ []),
+    do: Connection.call(connection, {:publish, exchange, routing_key, payload, options})
 
   def handle_call(
         {:publish, _exchange, _routing_key, _payload, _options},
@@ -186,10 +185,10 @@ defmodule Lapin.Connection do
         %{producers: producers, module: module} = state
       ) do
     with {:ok, %Producer{pattern: pattern} = producer} <- Producer.get(producers, exchange),
-         mandatory <- pattern.mandatory(producer),
-         persistent <- pattern.persistent(producer),
-         options <- Keyword.merge([mandatory: mandatory, persistent: persistent], options),
-         meta <- %{content_type: Payload.content_type(payload)},
+         mandatory = pattern.mandatory(producer),
+         persistent = pattern.persistent(producer),
+         options = Keyword.merge([mandatory: mandatory, persistent: persistent], options),
+         meta = %{content_type: Payload.content_type(payload)},
          {:ok, payload} <- Payload.encode(payload),
          :ok <- Producer.publish(producer, exchange, routing_key, payload, options) do
       message = %Message{meta: Enum.into(options, meta), payload: payload}
@@ -317,13 +316,13 @@ defmodule Lapin.Connection do
            payload: payload
          } = message
        ) do
-    with ack <- pattern.ack(consumer),
-         payload_for <- module.payload_for(consumer, message),
-         content_type <- Payload.content_type(payload_for),
-         meta <- Map.put(meta, :content_type, content_type),
-         {:ok, payload} <- Payload.decode_into(payload_for, payload),
-         message <- %Message{message | meta: meta, payload: payload},
-         :ok <- module.handle_deliver(consumer, message) do
+    payload_for = module.payload_for(consumer, message)
+
+    with {:ok, payload} <- Payload.decode_into(payload_for, payload),
+         ack = pattern.ack(consumer),
+         content_type = Payload.content_type(payload_for),
+         meta = Map.put(meta, :content_type, content_type),
+         :ok <- module.handle_deliver(consumer, %Message{message | meta: meta, payload: payload}) do
       Logger.debug(fn -> "Consuming message #{delivery_tag}" end)
       consume_ack(ack, consumer, delivery_tag)
     else
@@ -442,21 +441,21 @@ defmodule Lapin.Connection do
   defp bind_queues(queues, channel), do: Enum.each(queues, &Queue.bind(&1, channel))
 
   defp create_producers(configuration, connection) do
-    producers =
+    {
+      :ok,
       configuration
       |> Keyword.get(:producers, [])
       |> Enum.map(&Producer.create(connection, &1))
-
-    {:ok, producers}
+    }
   end
 
   defp create_consumers(configuration, connection) do
-    consumers =
+    {
+      :ok,
       configuration
       |> Keyword.get(:consumers, [])
       |> Enum.map(&Consumer.create(connection, &1))
-
-    {:ok, consumers}
+    }
   end
 
   defp cleanup_configuration(configuration) do
@@ -527,13 +526,8 @@ defmodule Lapin.Connection do
     end
   end
 
-  defp map_userinfo(userinfo) when is_binary(userinfo) do
-    parts =
-      userinfo
-      |> String.split(":", parts: 2)
-
-    [Enum.at(parts, 0), Enum.at(parts, 1)]
-  end
+  defp map_userinfo(user_info) when is_binary(user_info),
+    do: String.split(user_info, ":", parts: 2)
 
   defp map_userinfo(_), do: [nil, nil]
 
@@ -563,8 +557,7 @@ defmodule Lapin.Connection do
     if Enum.all?(params, &Keyword.has_key?(configuration, &1)) do
       :ok
     else
-      missing_params = Enum.reject(params, &Keyword.has_key?(configuration, &1))
-      {:error, :missing_params, missing_params}
+      {:error, :missing_params, Enum.reject(params, &Keyword.has_key?(configuration, &1))}
     end
   end
 end
