@@ -5,7 +5,7 @@ on:
     types: [opened, reopened, synchronize]
   push:
     branches:
-      - 'master'
+      - "master"
 
 jobs:
   test:
@@ -53,8 +53,8 @@ jobs:
     name: Linting
     strategy:
       matrix:
-        elixir: ['1.16']
-        otp: ['26']
+        elixir: ["1.17"]
+        otp: ["27"]
     steps:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
