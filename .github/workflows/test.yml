@@ -15,15 +15,17 @@ jobs:
     name: Test (OTP ${{ matrix.otp }} / Elixir ${{ matrix.elixir }})
     services:
       rabbitmq:
-        image: rabbitmq:3
+        image: rabbitmq:4.1
         ports:
           - 5672:5672
         options: --health-cmd "rabbitmqctl node_health_check" --health-interval 10s --health-timeout 5s --health-retries 5
     strategy:
       matrix:
-        elixir: ["1.18", "1.17", "1.16", "1.15"]
-        otp: ["27", "26"]
+        elixir: ["1.19", "1.18", "1.17", "1.16", "1.15"]
+        otp: ["28", "27", "26"]
         exclude:
+          - { otp: "28", elixir: "1.16" }
+          - { otp: "28", elixir: "1.15" }
           - { otp: "27", elixir: "1.16" }
           - { otp: "27", elixir: "1.15" }
     steps:
@@ -38,17 +40,13 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     name: Linting
-    strategy:
-      matrix:
-        elixir: ["1.18"]
-        otp: ["27"]
     steps:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         id: beam
         with:
-          otp-version: ${{ matrix.otp }}
-          elixir-version: ${{ matrix.elixir }}
+          version-file: .tool-versions
+          version-type: strict
       - name: PLT cache
         uses: actions/cache@v4
         with:
