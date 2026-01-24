@@ -30,7 +30,7 @@ jobs:
           - { otp: "27", elixir: "1.16" }
           - { otp: "27", elixir: "1.15" }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{ matrix.otp }}
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Linting
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: erlef/setup-beam@v1
         id: beam
         with:
