@@ -49,7 +49,7 @@ jobs:
           version-file: .tool-versions
           version-type: strict
       - name: PLT cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           key: |
             ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
