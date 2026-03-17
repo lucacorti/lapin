@@ -259,7 +259,9 @@ defmodule Lapin.Connection do
       Logger.debug("Broker confirmed cancelling consumer for #{inspect(consumer)}")
     else
       {:error, :not_found} ->
-        Logger.debug("Broker confirmed cancelling consumer for locally unknown tag '#{consumer_tag}'")
+        Logger.debug(
+          "Broker confirmed cancelling consumer for locally unknown tag '#{consumer_tag}'"
+        )
 
       error ->
         Logger.error("Error handling broker cancel for '#{consumer_tag}': #{inspect(error)}")
@@ -378,7 +380,9 @@ defmodule Lapin.Connection do
       }
     else
       {:error, error} ->
-        Logger.error("Connection error: #{inspect(error)} for #{module}, backing off for #{@backoff}")
+        Logger.error(
+          "Connection error: #{inspect(error)} for #{module}, backing off for #{@backoff}"
+        )
 
         {:keep_state_and_data, {:state_timeout, @backoff, nil}}
     end
