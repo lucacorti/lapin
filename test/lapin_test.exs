@@ -8,7 +8,9 @@ defmodule LapinTest do
 
     @impl Lapin.Connection
     def handle_deliver(consumer, message) do
-      Logger.debug("Consuming message #{inspect(message, pretty: true)} received on #{inspect(consumer, pretty: true)}")
+      Logger.debug(
+        "Consuming message #{inspect(message, pretty: true)} received on #{inspect(consumer, pretty: true)}"
+      )
     end
   end
 
