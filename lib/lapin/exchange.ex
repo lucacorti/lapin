@@ -31,11 +31,11 @@ defmodule Lapin.Exchange do
   def declare(%{name: name, type: type, options: options}, channel) do
     case Exchange.declare(channel, name, type, options) do
       :ok ->
-        Logger.debug(fn -> "Declared exchange #{name}: #{inspect([type, options])}" end)
+        Logger.debug("Declared exchange #{name}: #{inspect([type, options])}")
         :ok
 
       error ->
-        Logger.debug(fn -> "Error declaring exchange #{name}: #{inspect(error)}" end)
+        Logger.debug("Error declaring exchange #{name}: #{inspect(error)}")
         error
     end
   end

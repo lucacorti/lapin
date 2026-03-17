@@ -24,11 +24,11 @@ defmodule Lapin.Queue do
   def declare(%{name: name, options: options}, channel) do
     case Queue.declare(channel, name, options) do
       {:ok, info} ->
-        Logger.debug(fn -> "Declared queue #{name}: #{inspect(info)}" end)
+        Logger.debug("Declared queue #{name}: #{inspect(info)}")
         :ok
 
       error ->
-        Logger.debug(fn -> "Error declaring queue #{name}: #{inspect(error)}" end)
+        Logger.debug("Error declaring queue #{name}: #{inspect(error)}")
         error
     end
   end

@@ -212,16 +212,16 @@ defmodule Lapin.Connection do
       message = %Message{meta: Enum.into(options, meta), payload: payload}
 
       if not pattern.confirm(producer) or Producer.confirm(producer) do
-        Logger.debug(fn -> "Published #{inspect(message)} on #{inspect(producer)}" end)
+        Logger.debug("Published #{inspect(message)} on #{inspect(producer)}")
         {:keep_state_and_data, {:reply, from, module.handle_publish(producer, message)}}
       else
         error = "Error publishing #{inspect(message)}"
-        Logger.debug(fn -> error end)
+        Logger.debug(error)
         {:keep_state_and_data, {:reply, from, {:error, error}}}
       end
     else
       {:error, error} ->
-        Logger.debug(fn -> "Error sending message: #{inspect(error)}" end)
+        Logger.debug("Error sending message: #{inspect(error)}")
         {:keep_state_and_data, {:reply, from, {:error, error}}}
     end
   end
@@ -235,7 +235,7 @@ defmodule Lapin.Connection do
       ) do
     case Consumer.get(consumers, consumer_tag) do
       {:ok, consumer} ->
-        Logger.debug(fn -> "Broker cancelled consumer for #{inspect(consumer)}" end)
+        Logger.debug("Broker cancelled consumer for #{inspect(consumer)}")
         module.handle_cancel(consumer)
 
       {:error, :not_found} ->
@@ -256,12 +256,10 @@ defmodule Lapin.Connection do
       ) do
     with {:ok, consumer} <- Consumer.get(consumers, consumer_tag),
          :ok <- module.handle_cancel_ok(consumer) do
-      Logger.debug(fn -> "Broker confirmed cancelling consumer for #{inspect(consumer)}" end)
+      Logger.debug("Broker confirmed cancelling consumer for #{inspect(consumer)}")
     else
       {:error, :not_found} ->
-        Logger.debug(fn ->
-          "Broker confirmed cancelling consumer for locally unknown tag '#{consumer_tag}'"
-        end)
+        Logger.debug("Broker confirmed cancelling consumer for locally unknown tag '#{consumer_tag}'")
 
       error ->
         Logger.error("Error handling broker cancel for '#{consumer_tag}': #{inspect(error)}")
@@ -279,7 +277,7 @@ defmodule Lapin.Connection do
       ) do
     with {:ok, consumer} <- Consumer.get(consumers, consumer_tag),
          :ok <- module.handle_consume_ok(consumer) do
-      Logger.debug(fn -> "Broker registered consumer for #{inspect(consumer)}" end)
+      Logger.debug("Broker registered consumer for #{inspect(consumer)}")
     else
       {:error, :not_found} ->
         Logger.warning(
@@ -304,13 +302,13 @@ defmodule Lapin.Connection do
 
     with {:ok, producer} <- Producer.get(producers, exchange),
          :ok <- module.handle_return(producer, %Message{meta: meta, payload: payload}) do
-      Logger.debug(fn -> "Broker returned message #{inspect(message)}" end)
+      Logger.debug("Broker returned message #{inspect(message)}")
     else
       {:error, :not_found} ->
         Logger.warning("Broker returned message #{inspect(message)} for locally unknown channel")
 
       error ->
-        Logger.debug(fn -> "Error handling returned message: #{inspect(error)}" end)
+        Logger.debug("Error handling returned message: #{inspect(error)}")
     end
 
     :keep_state_and_data
@@ -380,9 +378,7 @@ defmodule Lapin.Connection do
       }
     else
       {:error, error} ->
-        Logger.error(fn ->
-          "Connection error: #{inspect(error)} for #{module}, backing off for #{@backoff}"
-        end)
+        Logger.error("Connection error: #{inspect(error)} for #{module}, backing off for #{@backoff}")
 
         {:keep_state_and_data, {:state_timeout, @backoff, nil}}
     end
@@ -407,7 +403,7 @@ defmodule Lapin.Connection do
          content_type = Payload.content_type(payload_for),
          meta = Map.put(meta, :content_type, content_type),
          :ok <- module.handle_deliver(consumer, %Message{message | meta: meta, payload: payload}) do
-      Logger.debug(fn -> "Consuming message #{delivery_tag}" end)
+      Logger.debug("Consuming message #{delivery_tag}")
       consume_ack(ack, consumer, delivery_tag)
     else
       {:reject, reason} ->
@@ -458,7 +454,7 @@ defmodule Lapin.Connection do
   end
 
   defp consume_ack(false = _ack, _channel, delivery_tag) do
-    Logger.debug(fn -> "Consumed message #{delivery_tag}, ACK not required" end)
+    Logger.debug("Consumed message #{delivery_tag}, ACK not required")
     :ok
   end
 

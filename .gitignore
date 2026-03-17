@@ -20,6 +20,6 @@ erl_crash.dump
 *.ez
 
 # ElixirLS files
-/.elixir_ls
+/.expert
 
 /log
