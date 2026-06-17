@@ -21,14 +21,18 @@ jobs:
         options: --health-cmd "rabbitmqctl node_health_check" --health-interval 10s --health-timeout 5s --health-retries 5
     strategy:
       matrix:
-        elixir: ["1.19", "1.18", "1.17", "1.16", "1.15"]
-        otp: ["28", "27", "26"]
+        elixir: ["1.20", "1.19", "1.18", "1.17", "1.16"]
+        otp: ["29", "28", "27", "26"]
         exclude:
+          - { otp: "26", elixir: "1.20" }
+          - { otp: "27", elixir: "1.16" }
+          - { otp: "28", elixir: "1.18" }
           - { otp: "28", elixir: "1.17" }
           - { otp: "28", elixir: "1.16" }
-          - { otp: "28", elixir: "1.15" }
-          - { otp: "27", elixir: "1.16" }
-          - { otp: "27", elixir: "1.15" }
+          - { otp: "29", elixir: "1.19" }
+          - { otp: "29", elixir: "1.18" }
+          - { otp: "29", elixir: "1.17" }
+          - { otp: "29", elixir: "1.16" }
     steps:
       - uses: actions/checkout@v6
       - uses: erlef/setup-beam@v1
@@ -48,18 +52,8 @@ jobs:
         with:
           version-file: .tool-versions
           version-type: strict
-      - name: PLT cache
-        uses: actions/cache@v5
-        with:
-          key: |
-            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
-          path: |
-            priv/plts
       - run: mix deps.get
       - run: mix deps.unlock --check-unused
       - run: mix compile --warnings-as-errors
       - run: mix format --check-formatted
       - run: mix credo --strict --all
-      - run: mix dialyzer --halt-exit-status

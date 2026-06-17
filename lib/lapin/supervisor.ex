@@ -3,8 +3,6 @@ defmodule Lapin.Supervisor do
 
   use Supervisor
 
-  require Logger
-
   @spec start_link :: Supervisor.on_start()
   def start_link do
     connections = Application.get_env(:lapin, :connections, [])

@@ -3,7 +3,6 @@ defmodule Lapin.Connection.Supervisor do
   Lapin Connections Supervisor
   """
   use Supervisor
-  require Logger
 
   @spec start_link(configuration :: Lapin.config()) :: Supervisor.on_start()
   def start_link(configuration) do
